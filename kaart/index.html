@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="VVEgemak">
+<meta name="theme-color" content="#1d7a6e">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>VVEgemak Kaart</title>
+<script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; height: 100vh; overflow: hidden; position: relative; }
+#container { width: 100%; height: 100vh; position: relative; }
+
+#header { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; pointer-events: none !important; transition: opacity 0.3s; user-select: none; -webkit-user-select: none; }
+#header-logo { height: 260px; pointer-events: none !important; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
+
+#search-bar { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; align-items: center; gap: 10px; width: 720px; pointer-events: all; }
+#search-box { flex: 1; position: relative; }
+#search-input { width: 100%; padding: 20px 24px 20px 54px; border-radius: 40px; border: none; font-size: 16px; outline: none; background: rgba(255,255,255,0.97); box-shadow: 0 6px 24px rgba(0,0,0,0.18); }
+#search-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: #aaa; }
+#search-results { position: absolute; bottom: 68px; left: 0; right: 0; background: #fff; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 9999; display: none; max-height: 220px; overflow-y: auto; }
+.search-result { padding: 10px 16px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f5f5f5; }
+.search-result:hover { background: #f5f5f5; }
+.search-sub { font-size: 11px; color: #999; margin-top: 2px; }
+
+#filter-btn { padding: 20px 28px; border-radius: 40px; border: none; background: #1d7a6e; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.18); flex-shrink: 0; }
+#filter-btn:hover { background: #155f55; }
+#filter-btn.active { background: #0f4a40; }
+
+#stats { position: absolute; bottom: 36px; right: 20px; z-index: 1000; display: flex; gap: 16px; background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); border-radius: 18px; padding: 12px 20px; box-shadow: 0 6px 24px rgba(0,0,0,0.12); }
+.stat-label { font-size: 13px; color: #333; font-weight: 700; }
+.stat-value { font-size: 20px; font-weight: 700; color: #1d7a6e; }
+
+#legenda { position: absolute; bottom: 36px; left: 20px; z-index: 1000; background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); border-radius: 16px; padding: 12px 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.12); }
+
+#tooltip { position: absolute; z-index: 2000; background: #fff; border-radius: 12px; padding: 10px 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); pointer-events: none; display: none; min-width: 180px; }
+#tooltip-name { font-size: 13px; font-weight: 700; color: #222; margin-bottom: 3px; }
+#tooltip-addr { font-size: 11px; color: #999; }
+
+#sidebar { position: absolute; right: 0; top: 0; height: 100%; width: 360px; background: #f0f2f5; border-left: 1px solid #ddd; overflow-y: auto; display: none; flex-direction: column; z-index: 600; box-shadow: -4px 0 20px rgba(0,0,0,0.1); }
+#sidebar.open { display: flex; }
+#sidebar-img { width: 100%; height: 200px; background: linear-gradient(135deg, #0f2027, #1d7a6e); display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
+#sidebar-close { position: absolute; top: 14px; left: 14px; width: 36px; height: 36px; border-radius: 50%; background: rgba(0,0,0,0.4); border: none; color: #fff; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+#sidebar-body { padding: 0; flex: 1; }
+#sidebar-top { padding: 18px 20px 14px; background: #fff; border-bottom: 1px solid #eee; position: relative; }
+#fav-btn { position: absolute; top: 18px; right: 16px; background: none; border: none; cursor: pointer; font-size: 22px; }
+#sidebar-name { font-size: 18px; font-weight: 700; color: #1a1a2a; margin-bottom: 3px; line-height: 1.3; padding-right: 30px; }
+#sidebar-sub { font-size: 13px; color: #999; margin-bottom: 10px; }
+.badge-app { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #fff; margin-top: 8px; }
+
+
+#sidebar-info { padding: 12px 16px; }
+.info-card { background: #fff; border-radius: 14px; padding: 4px 0; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.info-row { display: flex; align-items: flex-start; gap: 14px; padding: 12px 16px; border-bottom: 1px solid #f5f5f5; }
+.info-row:last-child { border-bottom: none; }
+.info-icon { width: 20px; height: 20px; flex-shrink: 0; color: #1d7a6e; margin-top: 1px; }
+.info-text { font-size: 14px; color: #222; line-height: 1.5; }
+
+#filter-panel { position: absolute; top: 0; left: 0; width: 320px; height: 100%; background: #f0f2f5; border-right: 1px solid #e8e8e8; z-index: 500; display: none; flex-direction: column; overflow-y: auto; box-shadow: 4px 0 20px rgba(0,0,0,0.08); }
+#filter-panel.open { display: flex; }
+#filter-panel-header { padding: 24px 20px 16px; background: #1d7a6e; display: flex; justify-content: space-between; align-items: center; }
+#filter-panel-header h2 { font-size: 18px; font-weight: 700; color: #fff; }
+#filter-close { background: rgba(255,255,255,0.2); border: none; font-size: 18px; cursor: pointer; color: #fff; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+#filter-body { padding: 20px; flex: 1; }
+.filter-section { margin-bottom: 24px; background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.filter-label { font-size: 11px; font-weight: 700; color: #1d7a6e; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+.type-toggle { display: flex; gap: 8px; }
+.type-btn { flex: 1; padding: 10px 8px; border-radius: 10px; border: 1.5px solid #e8e8e8; background: #fff; font-size: 13px; cursor: pointer; text-align: center; font-weight: 600; color: #444; }
+.type-btn.active { background: #1d7a6e; color: #fff; border-color: #1d7a6e; }
+.slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.slider-input { width: 78px; padding: 8px 8px; border: 1.5px solid #e8e8e8; border-radius: 8px; font-size: 13px; text-align: center; outline: none; }
+.slider-sep { color: #bbb; font-size: 14px; }
+.range-wrap { position: relative; height: 24px; margin: 4px 0; }
+.range-wrap input[type=range] { position: absolute; width: 100%; pointer-events: none; appearance: none; height: 4px; background: transparent; }
+.range-wrap input[type=range]::-webkit-slider-thumb { pointer-events: all; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #1d7a6e; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer; }
+.range-track { position: absolute; top: 10px; left: 0; right: 0; height: 4px; background: #e8e8e8; border-radius: 2px; }
+.range-fill { position: absolute; top: 10px; height: 4px; background: #1d7a6e; border-radius: 2px; }
+.stadsdeel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stadsdeel-btn { padding: 9px 8px; border-radius: 10px; border: 1.5px solid #e8e8e8; background: #fff; font-size: 13px; cursor: pointer; text-align: center; font-weight: 500; color: #444; }
+.stadsdeel-btn.active { background: #1d7a6e; color: #fff; border-color: #1d7a6e; }
+#reset-btn { width: 100%; padding: 13px; border-radius: 12px; border: 1.5px solid #e8e8e8; background: #fff; font-size: 14px; font-weight: 600; cursor: pointer; color: #666; }
+#reset-btn:hover { background: #fff0f0; color: #e05; border-color: #e05; }
+
+#top-btns { position: absolute; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 8px; }
+.top-btn { width: 44px; height: 44px; border-radius: 50%; border: none; background: rgba(255,255,255,0.95); box-shadow: 0 4px 16px rgba(0,0,0,0.12); cursor: pointer; font-size: 18px; transition: background 0.2s; }
+.top-btn.active { background: #1d7a6e; color: #fff; }
+
+body.dark-mode #legenda,
+body.dark-mode #stats,
+body.dark-mode #search-input,
+body.dark-mode #sidebar,
+body.dark-mode #filter-panel,
+body.dark-mode .info-card,
+body.dark-mode #fav-popup,
+body.dark-mode .filter-section { background: #1a1f2e !important; color: #e0e0e0 !important; border-color: #2e3650 !important; }
+body.dark-mode #search-bar .top-btn,
+body.dark-mode .top-btn { background: rgba(30,40,60,0.95) !important; color: #e0e0e0 !important; }
+body.dark-mode #filter-panel-header { background: #0f1520 !important; }
+body.dark-mode .stat-label,
+body.dark-mode .info-text,
+body.dark-mode #sidebar-name { color: #ccc !important; }
+body.dark-mode #sidebar-img { background: linear-gradient(135deg, #0a1018, #0f3d35) !important; }
+body.dark-mode .search-result { background: #1a1f2e !important; color: #e0e0e0 !important; }
+body.dark-mode .search-result:hover { background: #252d45 !important; }
+body.dark-mode #search-results { background: #1a1f2e !important; }
+#status-sectie { margin: 0 16px 10px; padding: 14px 16px; background: #fff; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.pin-key { padding: 16px 8px; border-radius: 14px; border: none; background: #f0f2f5; font-size: 20px; font-weight: 700; cursor: pointer; transition: background 0.1s; }
+.pin-key:active { background: #1d7a6e; color: #fff; }
+</style>
+<script src="vve_data.js"></script>
+<script src="flyer_data.js"></script>
+</head>
+<body>
+<div id="container"></div>
+<div id="tooltip"><div id="tooltip-name"></div><div id="tooltip-addr"></div></div>
+
+<div id="keuze-menu" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.18);padding:20px;z-index:10000;min-width:280px;max-width:360px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <span style="font-size:14px;font-weight:700;color:#222;">Meerdere VvEs op dit adres</span>
+    <button onclick="document.getElementById('keuze-menu').style.display='none'" style="border:none;background:none;cursor:pointer;font-size:20px;color:#aaa;line-height:1;">×</button>
+  </div>
+  <div id="keuze-lijst"></div>
+</div>
+
+<div id="header">
+  <img id="header-logo" alt="VVEgemak">
+</div>
+
+<div id="search-bar">
+  <div id="search-box">
+    <svg id="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="cursor:pointer;" onclick="zoekEnGa(document.getElementById('search-input').value || document.getElementById('search-input').placeholder)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input id="search-input" type="text" placeholder="Zoek VvE naam, straat, buurt..."
+      oninput="zoek(this.value)" onclick="this.select()" onkeydown="if(event.key==='Enter')zoekEnGa(this.value);"
+      onfocus="if(!this.value)toonRecente();else zoek(this.value)"
+      onblur="setTimeout(()=>{document.getElementById('search-results').style.display='none';},200)"
+      onkeydown="if(event.key==='Enter'){zoekEnGa(this.value);}">
+    <div id="search-results"></div>
+  </div>
+  <button id="filter-btn" onclick="toggleFilters()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+    Filters
+  </button>
+</div>
+
+<div id="legenda">
+  <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Legenda</div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
+    <div style="width:12px;height:12px;border-radius:50%;background:#7bc67e;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.2);flex-shrink:0;"></div>
+    <span style="font-size:13px;color:#333;font-weight:500;">Basic</span>
+    <span id="leg-basic" style="margin-left:auto;font-size:12px;font-weight:700;color:#1d7a6e;">—</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
+    <div style="width:12px;height:12px;border-radius:50%;background:#1d7a6e;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.2);flex-shrink:0;"></div>
+    <span style="font-size:13px;color:#333;font-weight:500;">Premium</span>
+    <span id="leg-premium" style="margin-left:auto;font-size:12px;font-weight:700;color:#1d7a6e;">—</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <div style="width:12px;height:12px;border-radius:50%;background:#f5a623;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.2);flex-shrink:0;"></div>
+    <span style="font-size:13px;color:#333;font-weight:500;">VVEgemak klant</span>
+    <span id="leg-klant" style="margin-left:auto;font-size:12px;font-weight:700;color:#f5a623;">—</span>
+  </div>
+</div>
+
+<div id="stats">
+  <div class="stat"><div class="stat-label">Totaal VvEs</div><div class="stat-value" id="s-total">—</div></div>
+  <div class="stat"><div class="stat-label">Gefilterd</div><div class="stat-value" id="s-visible">—</div></div>
+  <div class="stat"><div class="stat-label">Premium</div><div class="stat-value" id="s-premium">—</div></div>
+  <div class="stat"><div class="stat-label">Basic</div><div class="stat-value" id="s-basic">—</div></div>
+  <div class="stat"><div class="stat-label">Klanten</div><div class="stat-value" id="s-klant" style="color:#f5a623;">—</div></div>
+</div>
+
+<!-- Favorieten popup -->
+<div id="keuze-menu" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:12px;padding:20px;z-index:2000;max-height:60vh;overflow-y:auto;min-width:300px;box-shadow:0 8px 30px rgba(0,0,0,0.2);"></div>
+<div id="fav-popup" style="display:none;position:absolute;top:80px;right:20px;width:340px;max-height:500px;background:#fff;border-radius:20px;box-shadow:0 12px 40px rgba(0,0,0,0.15);z-index:1001;overflow:hidden;flex-direction:column;">
+  <div style="padding:18px 20px 14px;background:#1d7a6e;display:flex;justify-content:space-between;align-items:center;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:18px;">★</span>
+      <span style="font-size:16px;font-weight:700;color:#fff;">Favorieten</span>
+    </div>
+    <button onclick="document.getElementById('fav-popup').style.display='none'" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">×</button>
+  </div>
+  <div id="fav-lijst" style="overflow-y:auto;max-height:400px;padding:12px;"></div>
+</div>
+
+<div id="top-btns">
+  <button class="top-btn" id="dark-btn" onclick="toggleDarkMode()" title="Donkere modus" style="font-size:16px;">🌙</button>
+  <button class="top-btn" id="flyer-btn" onclick="toggleFlyerModus()" title="Flyer modus" style="font-size:14px;font-weight:700;">✉</button>
+  <button class="top-btn" id="fav-top-btn" onclick="toonFavorieten()" title="Favorieten">★</button>
+  <button class="top-btn" id="export-top-btn" onclick="exporteerExcel()" title="Exporteer">⬇</button>
+</div>
+
+<div id="filter-panel">
+  <div id="filter-panel-header">
+    <h2>Filters</h2>
+    <button id="filter-close" onclick="toggleFilters()">×</button>
+  </div>
+  <div id="filter-body">
+    <div class="filter-section">
+      <div class="filter-label">Type VvE</div>
+      <div class="type-toggle">
+        <button class="type-btn active" id="type-all" onclick="setType('all')">Alle</button>
+        <button class="type-btn" id="type-basic" onclick="setType('basic')">Basic</button>
+        <button class="type-btn" id="type-premium" onclick="setType('premium')">Premium</button>
+      </div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">Aantal appartementen</div>
+      <div class="slider-row">
+        <input class="slider-input" id="min-input" type="number" min="0" max="500" value="0" oninput="syncFromInput('min')">
+        <span class="slider-sep">–</span>
+        <input class="slider-input" id="max-input" type="number" min="0" max="2000" value="2000" oninput="syncFromInput('max')">
+      </div>
+      <div class="range-wrap">
+        <div class="range-track"></div>
+        <div class="range-fill" id="range-fill"></div>
+        <input type="range" id="slider-min" min="0" max="500" value="0" oninput="syncFromSlider('min')">
+        <input type="range" id="slider-max" min="0" max="2000" value="2000" oninput="syncFromSlider('max')">
+      </div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">Beheerder</div>
+      <div style="position:relative;">
+        <input id="f-beheerder-input" type="text" placeholder="Zoek beheerder (bijv. VVEgemak)..."
+          style="width:100%;padding:10px 12px;border:1.5px solid #e8e8e8;border-radius:10px;font-size:14px;outline:none;"
+          oninput="filterBeheerderList(this.value);filters.beheerder=this.value.trim();applyFiltersDebounced();"
+          onfocus="document.getElementById('beheerder-list').style.display='block'"
+          onblur="setTimeout(()=>document.getElementById('beheerder-list').style.display='none',200)">
+        <div id="beheerder-list" style="display:none;position:absolute;top:44px;left:0;right:0;background:#fff;border:1.5px solid #e8e8e8;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.1);z-index:999;max-height:200px;overflow-y:auto;">
+          <div class="beh-option" onclick="selectBeheerder('')" style="padding:10px 14px;font-size:13px;cursor:pointer;color:#1d7a6e;font-weight:600;border-bottom:1px solid #f5f5f5;">Alle beheerders</div>
+          <div class="beh-option" onclick="selectBeheerder('geen')" style="padding:10px 14px;font-size:13px;cursor:pointer;color:#888;border-bottom:1px solid #f5f5f5;">Zonder beheerder</div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">KvK Nummer</div>
+      <input id="kvk-search" type="text" placeholder="Zoek op KvK nummer..."
+        style="width:100%;padding:10px 12px;border:1.5px solid #e8e8e8;border-radius:10px;font-size:14px;outline:none;"
+        oninput="applyFiltersDebounced()">
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">Gemeente</div>
+      <div class="stadsdeel-grid">
+        <button class="stadsdeel-btn active" onclick="setStadsdeel(this,'')">Alle</button>
+        <button class="stadsdeel-btn" onclick="setStadsdeel(this,'AMSTERDAM')">Amsterdam</button>
+        <button class="stadsdeel-btn" onclick="setStadsdeel(this,'AMSTELVEEN')">Amstelveen</button>
+        <button class="stadsdeel-btn" onclick="setStadsdeel(this,'DIEMEN')">Diemen</button>
+        <button class="stadsdeel-btn" onclick="setStadsdeel(this,'HAARLEM')">Haarlem</button>
+        <button class="stadsdeel-btn" onclick="setStadsdeel(this,'ZAANDAM')">Zaandam</button>
+        <button class="stadsdeel-btn" onclick="setStadsdeel(this,'WEESP')">Weesp</button>
+        <button class="stadsdeel-btn" onclick="setStadsdeel(this,'PURMEREND')">Purmerend</button>
+      </div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">Status</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;" id="status-filter-knoppen">
+        <button class="status-filter-btn" onclick="setStatusFilter(this,'')" style="padding:7px 14px;border-radius:25px;border:none;background:#1d7a6e;color:#fff;font-size:12px;cursor:pointer;font-weight:700;">Alle</button>
+        <button class="status-filter-btn" onclick="setStatusFilter(this,'nieuw')" style="padding:7px 14px;border-radius:25px;border:none;background:#f0f2f5;color:#999;font-size:12px;cursor:pointer;">Nieuw</button>
+        <button class="status-filter-btn" onclick="setStatusFilter(this,'benaderd')" style="padding:7px 14px;border-radius:25px;border:none;background:#f0f2f5;color:#999;font-size:12px;cursor:pointer;">Benaderd</button>
+        <button class="status-filter-btn" onclick="setStatusFilter(this,'gesprek')" style="padding:7px 14px;border-radius:25px;border:none;background:#f0f2f5;color:#999;font-size:12px;cursor:pointer;">In gesprek</button>
+        <button class="status-filter-btn" onclick="setStatusFilter(this,'klant')" style="padding:7px 14px;border-radius:25px;border:none;background:#f0f2f5;color:#999;font-size:12px;cursor:pointer;">Klant</button>
+        <button class="status-filter-btn" onclick="setStatusFilter(this,'niet')" style="padding:7px 14px;border-radius:25px;border:none;background:#f0f2f5;color:#999;font-size:12px;cursor:pointer;">Niet geïnteresseerd</button>
+      </div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">VVEgemak</div>
+      <div class="type-toggle">
+        <button class="type-btn active" id="klant-all" onclick="setKlantFilter('all')">Alle</button>
+        <button class="type-btn" id="klant-only" onclick="setKlantFilter('klant')">Alleen klanten</button>
+        <button class="type-btn" id="klant-niet" onclick="setKlantFilter('geen')">Geen klant</button>
+      </div>
+    </div>
+    <button id="reset-btn" onclick="resetFilters()">↺ Reset alle filters</button>
+  </div>
+</div>
+
+<div id="sidebar">
+  <div id="sidebar-img">
+    <button id="sidebar-close" onclick="document.getElementById('sidebar').classList.remove('open');document.getElementById('stats').style.display='';">‹</button>
+    <svg width="60" height="60" viewBox="0 0 100 100" fill="none" opacity="0.6">
+      <rect x="18" y="32" width="26" height="52" rx="3" fill="#f5a623"/>
+      <rect x="54" y="16" width="26" height="68" rx="3" fill="#f5a623"/>
+      <rect x="8" y="62" width="84" height="5" rx="2" fill="#e8921a"/>
+    </svg>
+  </div>
+  <div id="sidebar-body">
+    <div id="sidebar-top">
+      <button id="fav-btn" onclick="toggleFavoriet(currentVvE)">☆</button>
+      <div id="sidebar-name"></div>
+      <div id="sidebar-sub">Vereniging van Eigenaren</div>
+      <div id="sidebar-badge"></div>
+    </div>
+
+    <div id="sidebar-btns" style="display:none;">
+      <button class="s-btn" id="btn-route"></button>
+      <button class="s-btn" id="btn-web"></button>
+      <button class="s-btn" id="btn-bel"></button>
+    </div>
+    <div id="sidebar-info"></div>
+    <div id="status-sectie">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:11px;color:#1d7a6e;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Status</div>
+        <div id="laatste-contact" style="font-size:11px;color:#999;"></div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;" id="status-knoppen"></div>
+    </div>
+  <div id="flyer-sectie" style="display:none;margin:0 16px 10px;padding:14px 16px;background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:11px;color:#1d7a6e;font-weight:700;text-transform:uppercase;letter-spacing:1px;">✉ Flyer</div>
+        <div id="laatste-flyer" style="font-size:11px;color:#999;"></div>
+      </div>
+      <button onclick="markeerGeflyerd(currentVvE)" style="width:100%;padding:10px;border-radius:25px;border:none;background:#1d7a6e;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">✓ Geflyerd vandaag</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pincode modal -->
+<div id="pin-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:20000;display:none;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:24px;padding:28px 24px;width:300px;box-shadow:0 24px 60px rgba(0,0,0,0.3);text-align:center;">
+    <div style="font-size:28px;margin-bottom:8px;">🔒</div>
+    <div style="font-size:17px;font-weight:700;color:#222;margin-bottom:4px;">Flyer modus</div>
+    <div id="pin-msg" style="font-size:13px;color:#999;margin-bottom:20px;">Voer de pincode in</div>
+    <!-- Dots -->
+    <div style="display:flex;justify-content:center;gap:12px;margin-bottom:20px;" id="pin-dots">
+      <div class="pin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:background 0.15s;"></div>
+      <div class="pin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:background 0.15s;"></div>
+      <div class="pin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:background 0.15s;"></div>
+      <div class="pin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:background 0.15s;"></div>
+    </div>
+    <!-- Numpad -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+      <button class="pin-key" onclick="pinInvoer('1')">1</button>
+      <button class="pin-key" onclick="pinInvoer('2')">2</button>
+      <button class="pin-key" onclick="pinInvoer('3')">3</button>
+      <button class="pin-key" onclick="pinInvoer('4')">4</button>
+      <button class="pin-key" onclick="pinInvoer('5')">5</button>
+      <button class="pin-key" onclick="pinInvoer('6')">6</button>
+      <button class="pin-key" onclick="pinInvoer('7')">7</button>
+      <button class="pin-key" onclick="pinInvoer('8')">8</button>
+      <button class="pin-key" onclick="pinInvoer('9')">9</button>
+      <button class="pin-key" onclick="sluitPinModal()" style="background:#f5f5f5;color:#999;font-size:18px;">✕</button>
+      <button class="pin-key" onclick="pinInvoer('0')">0</button>
+      <button class="pin-key" onclick="pinWis()" style="background:#f5f5f5;color:#666;font-size:18px;">⌫</button>
+    </div>
+  </div>
+</div>
+
+<!-- Flyer route panel -->
+<div id="flyer-panel" style="display:none;position:absolute;top:0;right:0;height:100%;width:360px;background:#f5f6f8;border-left:1px solid #ddd;overflow-y:auto;z-index:700;box-shadow:-4px 0 20px rgba(0,0,0,0.12);">
+  <!-- Header -->
+  <div style="padding:18px 20px 14px;background:linear-gradient(135deg,#1d7a6e,#2aa090);position:sticky;top:0;z-index:2;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:17px;font-weight:700;color:#fff;">✉ Flyer modus</div>
+      <button onclick="sluitFlyerPanel()" style="background:rgba(255,255,255,0.25);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1;">×</button>
+    </div>
+    <!-- Stap indicator -->
+    <div id="flyer-stap-bar" style="display:flex;gap:6px;margin-top:12px;">
+      <div class="fstap" id="fstap-1" style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.9);"></div>
+      <div class="fstap" id="fstap-2" style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.3);"></div>
+      <div class="fstap" id="fstap-3" style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.3);"></div>
+      <div class="fstap" id="fstap-4" style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.3);"></div>
+      <div class="fstap" id="fstap-5" style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.3);"></div>
+    </div>
+    <div id="flyer-stap-label" style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:6px;">Stap 1 van 5</div>
+  </div>
+  <div style="padding:16px;">
+
+    <!-- STAP 1: Basic / Premium -->
+    <div id="flyer-s1">
+      <div style="font-size:15px;font-weight:700;color:#222;margin-bottom:6px;">Welk type VvE?</div>
+      <div style="font-size:12px;color:#999;margin-bottom:16px;">Kies basic (&lt;50 units) of premium (50+)</div>
+      <button onclick="flyerKiesType('basic')" style="width:100%;padding:16px;border-radius:14px;border:2px solid #e0e0e0;background:#fff;cursor:pointer;margin-bottom:10px;text-align:left;transition:all 0.15s;" onmouseover="this.style.borderColor='#1d7a6e'" onmouseout="this.style.borderColor='#e0e0e0'">
+        <div style="font-size:15px;font-weight:700;color:#222;">🏠 Basic</div>
+        <div style="font-size:12px;color:#888;margin-top:3px;">Minder dan 50 appartementen / units</div>
+      </button>
+      <button onclick="flyerKiesType('premium')" style="width:100%;padding:16px;border-radius:14px;border:2px solid #e0e0e0;background:#fff;cursor:pointer;text-align:left;transition:all 0.15s;" onmouseover="this.style.borderColor='#1d7a6e'" onmouseout="this.style.borderColor='#e0e0e0'">
+        <div style="font-size:15px;font-weight:700;color:#222;">🏢 Premium</div>
+        <div style="font-size:12px;color:#888;margin-top:3px;">50 of meer appartementen / units</div>
+      </button>
+    </div>
+
+    <!-- STAP 2: Stadsdeel -->
+    <div id="flyer-s2" style="display:none;">
+      <button onclick="flyerNaarStap(1)" style="border:none;background:none;color:#1d7a6e;font-size:13px;cursor:pointer;padding:0;margin-bottom:12px;">← Terug</button>
+      <div style="font-size:15px;font-weight:700;color:#222;margin-bottom:6px;">Kies stadsdeel</div>
+      <div style="font-size:12px;color:#999;margin-bottom:14px;">Aantal VvEs dat aan de beurt is</div>
+      <div id="flyer-stadsdeel-lijst"></div>
+    </div>
+
+    <!-- STAP 3: Buurten -->
+    <div id="flyer-s3" style="display:none;">
+      <button onclick="flyerNaarStap(2)" style="border:none;background:none;color:#1d7a6e;font-size:13px;cursor:pointer;padding:0;margin-bottom:12px;">← Terug</button>
+      <div style="font-size:15px;font-weight:700;color:#222;margin-bottom:4px;">Kies buurt(en)</div>
+      <div style="font-size:12px;color:#999;margin-bottom:14px;">Selecteer één of meerdere buurten</div>
+      <div id="flyer-buurt-lijst"></div>
+      <button onclick="flyerBevestigBuurten()" id="flyer-buurt-btn" style="display:none;width:100%;padding:14px;border-radius:12px;border:none;background:#1d7a6e;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-top:12px;">Volgende →</button>
+    </div>
+
+    <!-- STAP 4: Flyer kiezen -->
+    <div id="flyer-s4" style="display:none;">
+      <button onclick="flyerNaarStap(3)" style="border:none;background:none;color:#1d7a6e;font-size:13px;cursor:pointer;padding:0;margin-bottom:12px;">← Terug</button>
+      <div style="font-size:15px;font-weight:700;color:#222;margin-bottom:6px;">Welke flyer?</div>
+      <div style="font-size:12px;color:#999;margin-bottom:14px;">Kies de flyer voor deze sessie</div>
+      <div id="flyer-type-keuze">
+        <button onclick="flyerKiesFlyer('Standaard',this)" class="flyer-type-btn" style="width:100%;padding:14px;border-radius:12px;border:2px solid #e0e0e0;background:#fff;cursor:pointer;margin-bottom:8px;text-align:left;">
+          <div style="font-weight:700;color:#222;">📄 Standaard flyer</div>
+        </button>
+        <button onclick="flyerKiesFlyer('Handen',this)" class="flyer-type-btn" style="width:100%;padding:14px;border-radius:12px;border:2px solid #e0e0e0;background:#fff;cursor:pointer;margin-bottom:8px;text-align:left;">
+          <div style="font-weight:700;color:#222;">🤝 Handen flyer</div>
+        </button>
+        <button onclick="flyerKiesFlyer('Puzzel',this)" class="flyer-type-btn" style="width:100%;padding:14px;border-radius:12px;border:2px solid #e0e0e0;background:#fff;cursor:pointer;text-align:left;">
+          <div style="font-weight:700;color:#222;">🧩 Puzzel flyer</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- STAP 5: Route -->
+    <div id="flyer-s5" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-size:15px;font-weight:700;color:#222;">Route</div>
+        <div id="flyer-route-badge" style="background:#1d7a6e;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;"></div>
+      </div>
+      <div id="flyer-route-info" style="background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:12px;color:#666;"></div>
+      <div id="flyer-route-lijst"></div>
+      <button onclick="flyerSessieKlaar()" style="width:100%;padding:16px;border-radius:14px;border:none;background:#1d7a6e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:12px;">✓ Klaar — sessie afronden</button>
+    </div>
+
+    <!-- STAP 6: Klaar / tijdinvoer -->
+    <div id="flyer-s6" style="display:none;">
+      <div style="text-align:center;padding:20px 0 10px;">
+        <div style="font-size:40px;margin-bottom:8px;">🎉</div>
+        <div style="font-size:17px;font-weight:700;color:#222;margin-bottom:4px;">Sessie afgerond!</div>
+        <div id="flyer-klaar-samenvatting" style="font-size:13px;color:#888;"></div>
+      </div>
+      <div style="background:#fff;border-radius:14px;padding:16px;margin-top:12px;">
+        <div style="font-size:13px;font-weight:600;color:#444;margin-bottom:10px;">Hoe lang was je bezig?</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="flyer-uur" type="number" min="0" max="12" value="1" style="width:60px;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:16px;text-align:center;outline:none;"> <span style="color:#888;">uur</span>
+          <input id="flyer-min" type="number" min="0" max="59" value="0" style="width:60px;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:16px;text-align:center;outline:none;"> <span style="color:#888;">min</span>
+        </div>
+      </div>
+      <button onclick="flyerOpslaanTijd()" style="width:100%;padding:16px;border-radius:14px;border:none;background:#1d7a6e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:14px;">Opslaan & afsluiten</button>
+    </div>
+
+  </div>
+
+  <!-- Legenda (altijd onderaan zichtbaar in flyer modus) -->
+  <div style="margin:0 16px 20px;padding:14px;background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+    <div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Legenda</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;">
+      <div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59500;margin-right:6px;"></span>Bezoek 1 nodig</div>
+      <div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#27ae60;margin-right:6px;"></span>Bezoek 2 op tijd</div>
+      <div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3498db;margin-right:6px;"></span>Bezoek 3 op tijd</div>
+      <div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e74c3c;margin-right:6px;"></span>Te laat</div>
+      <div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#bbb;margin-right:6px;"></span>Klaar / te vroeg</div>
+      <div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f5c542;margin-right:6px;"></span>Te vroeg (&lt;2 wkn)</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const {DeckGL, ScatterplotLayer} = deck;
+
+// Logo laden
+fetch('').then(()=>{}).catch(()=>{});
+document.getElementById('header-logo').src = 'data:image/png;base64,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';
+
+const STATUS = {
+  '':        { label: 'Geen status', bg: '#fff',     tekst: '#999' },
+  'nieuw':   { label: 'Nieuw',       bg: '#1d7a6e',  tekst: '#fff' },
+  'benaderd':{ label: 'Benaderd',    bg: '#2c3e50',  tekst: '#fff' },
+  'gesprek': { label: 'In gesprek',  bg: '#7bc67e',  tekst: '#fff' },
+  'klant':   { label: 'Klant ✓',    bg: '#f5a623',  tekst: '#fff' },
+  'niet':    { label: 'Niet geïnteresseerd', bg: '#f5f5f5', tekst: '#888' },
+};
+
+let currentVvE = null;
+let favorieten = JSON.parse(localStorage.getItem('vve_favorieten') || '[]');
+let statussen = JSON.parse(localStorage.getItem('vve_statussen') || '{}');
+let contactData = JSON.parse(localStorage.getItem('vve_contact') || '{}');
+let recenteZoekopdrachten = JSON.parse(localStorage.getItem('vve_recent') || '[]');
+// flyerDataInit uit flyer_data.js, aangevuld met localStorage (localStorage wint)
+let flyerData = Object.assign({}, typeof flyerDataInit!=='undefined' ? flyerDataInit : {}, JSON.parse(localStorage.getItem('vve_flyer') || '{}'));
+let flyerModus = false;
+let filters = { type: 'all', minApp: 0, maxApp: 2000, beheerder: '', stadsdeel: '', status: '', klant: 'all' };
+
+// Data wordt extern geladen
+
+document.getElementById('s-total').textContent = alleData.length.toLocaleString('nl');
+
+const uniekeBeheerders = ["24/7 VvE Beheer B.V.", "A.G. van Bladeren Makelaardij B.V.", "A.R.P. Randstad C.V.", "AHAM Vastgoed B.V.", "ALGEMEEN CONTROLE BUREAU (ACB) B.V.", "ASR Dutch Core Residential Custodian B.V.", "Actys VvE B.V.", "Adelbrecht Vastgoed Beheermaatschappij B.V.", "Aefect Adviescombinatie B.V.", "Ahold Europe Real Estate &amp; Construction B.V.", "All Monuments B.V.", "Almade Vastgoed B.V.", "Almoto Administraties", "Alpvast B.V.", "Altera Vastgoed B.V.", "Amstarr VvE bestuur B.V.", "Amstarr Vve Beheer B.V.", "Amstel 111 B.V.", "Amstelstad Vastgoed B.V.", "Amsterdam Real Estate Services B.V.", "Amsterdam Sloterhof I B.V.", "Amsterdam Urban Developments B.V.", "Amsterdams Fundament B.V.", "Amsterdams Vastgoed Beheer B.V.", "Amsterdamse Vastgoed- en Ontwikkelingsmaatschappij \"Berlage\" B.V.", "Amsterdomus Beheer B.V.", "Amvest Development Real Estate B.V.", "Amvest Investment Management B.V.", "Amvest RCF Custodian B.V.", "Anno Nu Groep B.V.", "Ark Beheer B.V.", "Atrium Vastgoedmanagement B.V.", "Aurelio Investment B.V.", "Aurora-Vrido B.V.", "Aycon Vastgoedmanagement B.V.", "B.V. Beleggingsmaatschappij EMA", "B.V. Centraal Huizen Beheer", "B.V. Eigen Haard", "B.V. Pilaster V.v.E. Beheer", "B.V. Pilaster VvE Beheer Noord-Holland", "BFM VASTGOED B.V.", "BKS Beheer B.V.", "BPD Ontwikkeling B.V.", "BRE Zaandam Mauritsstraat B.V.", "Bargis Vastgoed B.V.", "Beelen Vastgoed Renovatie B.V.", "BeheerGoed B.V.", "Beleggingsmaatschappij \"De Gouden Stroom\" B.V.", "Beleggingsmaatschappij Johanna II B.V.", "Beleggingsmaatschappij Shantie B.V.", "Bergense Vastgoed Maatschappij B.V.", "Bergermeer B.V.", "Biloxi Vastgoed B.V.", "Boersma Vastgoed Beheer V.O.F.", "Booij Makelaardij o.z. B.V.", "Brickster B.V.", "Bureau Landelijk Wonen Groningen B.V.", "CBRE DRES Custodian I B.V.", "Caransa Groep B.V.", "Caymen Invest B.V.", "Centraal Oosten Onroerend Goed B.V.", "City Upgrade Property Management B.V.", "Civilus B.V.", "Cluster Verenigingen Beheer B.V.", "Cobraspen Beheer B.V.", "Corn. Janus &amp; Zn. o.g. Beheer B.V.", "Cornerstone Vastgoed B.V.", "Credit Linked Beheer B.V.", "D &amp; S Vastgoed B.V.", "DC Management B.V.", "DK VvE Beheer V.O.F.", "DME Amsterdam B.V.", "DREEF5 VvE Beheer B.V.", "DS Beheer B.V.", "DXA Beheer B.V.", "DdeG Vastgoed B.V.", "De Alliantie VVE Diensten B.V.", "De BeheerCompagnie B.V.", "De Bruyn en Tak Makelaardij B.V.", "De Facto Vastgoed B.V.", "De Hoge Dennen Holding B.V.", "De Houten Steen Holding B.V.", "De Nieuwe Wereld B.V.", "De VVE Company B.V.", "Delair Vastgoed Beheer B.V.", "Dierdorp Advies B.V.", "Digitaal VvE Beheer V.O.F.", "Direct VvE Beheer B.V.", "Doryz B.V.", "Dreef Beheer B.V.", "Dufil B.V.", "Dutch Student and Young Professional Housing Management B.V.", "Duyves Beheer B.V.", "Egelinck B.V.", "Egeria Real Estate Investments B.V.", "Ektiv VvE Beheer B.V.", "Elvestia Beleggingen B.V.", "Elvestia Vastgoed Beheer B.V.", "FLINQ Vastgoed B.V.", "Faam B.V.", "Falcon VVE Management B.V.", "Fazantenbos B.V.", "Fidata VvE Beheer B.V.", "Fides Vastgoedmanagement B.V.", "Field Willow Real Estate Investments B.V.", "Florian B.V.", "Four B Brothers Office Investments B.V.", "Galman &amp; Versteeg Makelaars O.G. B.V.", "Gemeente Amsterdam", "Gemeente Haarlem", "Gershwinhoff B.V.", "Gewoon Goed VvE Beheer en Advies B.V.", "Gorssel Real Estate B.V.", "Grabo Onroerend Goed B.V.", "Groveway Amsterdam B.V.", "HECF Polaris Coöperatief U.A.", "HVMS Zakelijk B.V.", "Handel- en Exploitatiemaatschappij Nieuwezijds B.V.", "Het Nieuwe VVE Beheer B.V.", "Heyen B.V.", "Hilvasco B.V.", "Hoen Vastgoedbeheer B.V.", "Holland Huis VVE Beheer B.V.", "Home Castle Real Estate B.V.", "Hoorne Vastgoed B.V.", "Identity Sassenheim B.V.", "Immobiliare Due B.V.", "Intrema B.V.", "Inxxx Vastgoedbeheer", "Iris VvE Beheer B.V.", "J &amp; M Beheer B.V.", "JSR Vastgoedmanagement B.V.", "JVL Administraties B.V.", "JW Vastgoed Management B.V.", "JWA Beheer B.V.", "Jakido Weesp B.V.", "Joreno Vastgoed B.V.", "Jut Finance B.V.", "Kappelle Vastgoed Management B.V.", "Kees VVE Beheer B.V.", "Keij &amp; Stefels Beheer B.V.", "Keijzer VvE Beheer B.V.", "Kinneging &amp; Heijer Beheer B.V.", "Kondor Wessels Vastgoed B.V.", "Kroonenberg Groep B.V.", "LFB-Vastgoed Ontwikkeling B.V.", "LUSPAR O.G. B.V.", "Lapidus Management &amp; Beheer B.V.", "Lastagio Investments B.V.", "Lebo Vastgoed B.V.", "Leve Vastgoed B.V.", "Libra International B.V.", "Loeffen VvE beheer B.V.", "M & Y B.V.", "M.W. Real Estate B.V.", "MAJIME B.V.", "MDO Vastgoed Beheer B.V.", "MHM Onroerend Goed B.V.", "MPO B.V.", "MaMa Robin Wood GP II B.V.", "Man Company", "Marpi B.V.", "Marwijmo Ontwikkeling en Exploitatie Maatschappij B.V.", "Midvast B.V.", "Millen3um V.V.E. Beheer B.V.", "Minerva Vastgoedbeheer B.V.", "Mn Services Vermogensbeheer B.V.", "Munnik VVE Beheer B.V.", "NDK Vastgoedmanagement B.V.", "NH Vastgoed en VvE Beheer B.V.", "NLV B.V.", "NMG VVE Beheer B.V.", "Nationaal Grondbezit B.V.", "NederWoon VvE Beheer B.V.", "Nedgoed B.V.", "Nedstede Real Estate Management B.V.", "Newomij VvE Beheer B.V.", "Nico Tel Makelaars o.g. B.V.", "Nienaber Makelaars B.V.", "Nienaber VGM B.V.", "Nieuwendorp Beheer", "Nieuwgeluk Real Estate B.V.", "Nijzoon B.V.", "Objectief Management B.V.", "Onze Beheerder B.V.", "Oosteinde Ontwikkelingen B.V.", "Oprecht Beheer B.V.", "Organique B.V.", "P.H. Kuijper Makelaardij B.V.", "PAAP VvE Beheer B.V.", "PMA Vastgoed B.V.", "Parel VvE Beheer B.V.", "Partners en VvE-Beheer B.V.", "Pax Beheer B.V.", "Perca Vastgoed B.V.", "Petite VVE Management B.V.", "Pinnacle B.V.", "Pitlo Vastgoed Beheer B.V.", "Planbureau Projecta-Amstelveen B.V.", "Poelwijck Sweers Makelaardij o.g./Vastgoedmanagement B.V.", "Pro VVE Beheer B.V.", "Procon Solutions B.V.", "Quadyck Real Estate B.V.", "R2 Property B.V.", "RJB Netherlands B.V.", "RLD Vastgoed Beheer B.V.", "RW Utrecht B.V.", "Randstad Vastgoed Groep VvE Beheer B.V.", "Rappange Administratie B.V.", "Rebo VVE Management B.V.", "RecoVast B.V.", "Recourt B.V.", "Regiomakelaars B.V.", "Reijckeroordt II B.V.", "Rijn Administratie &amp; Beheer", "Roco Real Estate B.V.", "Roksvast B.V.", "Rotterdam Urban Developments B.V.", "SKB Beheer Vastgoed Management B.V.", "SSW Groep B.V.", "Schep Vastgoedmanagers B.V.", "Segesta Exploitatie B.V.", "Segesta Vastgoedbeheer B.V.", "Smart VvE Beheer B.V.", "Snijder Vastgoed Ontwikkeling B.V.", "Solane B.V.", "Solar PFK BV", "Stadsdeel B.V.", "Stadswacht B.V.", "Statenplein VVE Beheer B.V.", "Stedeplan B.V.", "Steen Kuijpers Holding B.V.", "Steen Kuijpers Makelaars B.V.", "Steenhuys Vastgoed B.V.", "Stevaco Beheer B.V.", "Stichting Administratiekantoor Sojavor", "Stichting Bedrijfstakpensioenfonds voor de Bouwnijverheid", "Stichting Bouwinvest Dutch Institutional Residential Fund", "Stichting Clavis", "Stichting Collectief Beheer Winkelcentra", "Stichting Dudok Wonen", "Stichting KleurrijkWonen", "Stichting Parteon", "Stichting Pré Wonen", "Stichting Stadgenoot", "Stichting XS VvE Beheer", "Stichting Ymere", "Stichting de Alliantie", "Stienstra Wonen 2 B.V.", "Sturm &amp; De Neeve Vastgoedmanagement B.V.", "SyndiCasa B.V.", "Ter Linden en Heijer VvE Beheer B.V.", "Tolsma VVE Beheer B.V.", "Totaal VVE Beheer Den Haag en Omstreken B.V.", "Twinss VvE Beheer B.V.", "VAVL B.V.", "VB Real Estate Management B.V.", "VORM Ontwikkeling B.V.", "VP&amp;A Vastgoedmanagement B.V.", "VVE 4 U", "VVE Diensten Nederland Arnhem B.V.", "VVE Diensten Nederland Den Haag B.V.", "VVE NL B.V.", "VVEgemak B.V.", "VZB Vastgoed B.V.", "Valk VvE Beheer B.V.", "Valka Vastgoed B.V.", "Van Amstel Nederveen B.V.", "Van Driel VvE Management vof", "Van Keulen Beheer B.V.", "Van Roemburg VvE-Beheer B.V.", "Van Wijnen Projectontwikkeling West B.V.", "Van den Berg &amp; Van Willigenburg B.V.", "Van der Zwan Vastgoed B.V.", "Vastgoedbrigade B.V.", "Vastibius B.V.", "Velzel VVE Diensten B.V.", "Verenigde Administratiekantoren voor VVE-Beheer B.V.", "Vesteda Investment Management B.V.", "Vincent &amp; Vincent B.V.", "Vink Bouw B.V.", "Vivada Properties XI B.V.", "Vlakland 1 B.V.", "Von Linné B.V.", "Vondels Beheer B.V.", "VvE Beheer Amsterdam B.V.", "VvE Beheer Groep B.V.", "VvE Beheer Viridis Nederland B.V.", "VvE Commitment B.V.", "VvE Digitaal B.V.", "VvE Financieel Beheer B.V.", "VvE Partner B.V.", "VvE voorzitter B.V.", "VvE-tje B.V.", "WPNL - IX B.V.", "Westpoint Beheer B.V.", "Willem Schuit Makelaardij B.V.", "Winter Vastgoed B.V.", "Winter VvE Groep B.V.", "Woningstichting Eigen Haard", "Woningstichting GoedeStede", "Woningstichting Haag Wonen", "WoonHolland Delfland B.V.", "Woonhave Beheer B.V.", "Woonhuis Vastgoed Management B.V.", "Woonstichting Lieven de Key", "YEPRO", "Zomer VvE Beheer B.V.", "Zosta Beheer B.V.", "Zuider Vastgoed B.V.", "Zwets Vastgoedmanagement B.V.", "de HuisHouding B.V.", "sort of investments b.v.", "stichting woonstad rotterdam", "van Doesum en Koopman Administratiekantoor V.O.F."];
+const bList = document.getElementById('beheerder-list');
+uniekeBeheerders.forEach(b=>{
+  const div=document.createElement('div');
+  div.style.cssText='padding:10px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid #f5f5f5;';
+  div.textContent=b; div.onclick=()=>selectBeheerder(b);
+  div.onmouseover=()=>div.style.background='#f0faf9';
+  div.onmouseout=()=>div.style.background='';
+  bList.appendChild(div);
+});
+
+const deckgl = new DeckGL({
+  container: 'container',
+  mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+  initialViewState: { longitude: 4.895, latitude: 52.370, zoom: 11, pitch: 0, bearing: 0 },
+  controller: true,
+  onViewStateChange: ({viewState}) => {
+    const logo = document.getElementById('header');
+    logo.style.opacity = viewState.zoom >= 14 ? '0' : '1';
+    logo.style.pointerEvents = viewState.zoom >= 14 ? 'none' : 'all';
+    if (Math.abs(viewState.zoom - huidigZoom) > 0.3) {
+      huidigZoom = viewState.zoom;
+      applyFilters();
+
+    }
+  },
+  layers: [],
+});
+
+// Pre-compute totaal eenmalig zodat applyFilters dit niet herberekent
+alleData.forEach(d => { d.totaal = (d.app||0)+(d.kantoren||0)+(d.winkels||0)+(d.parkeerplaatsen||0); });
+
+function totaalFuncties(d){ return d.totaal; }
+function getColor(d){ if(d.klant) return [245,166,35,255]; return d.totaal>=50 ? [29,122,110,230] : [123,198,126,220]; }
+function getRadius(app){ return app>=50 ? 8 : 6; }
+
+let huidigZoom = 11;
+let darkMode = false;
+
+// Buurt-index uitgesteld bouwen zodat de kaart eerst laadt
+let buurten = [];
+setTimeout(() => {
+  const buurtIndex = {};
+  alleData.forEach(d => {
+    if(d.buurt && d.buurt.trim()) {
+      const b = d.buurt.trim();
+      if(!buurtIndex[b]) buurtIndex[b] = {naam: b, lat: 0, lng: 0, n: 0};
+      if(d.lat && d.lng) { buurtIndex[b].lat += d.lat; buurtIndex[b].lng += d.lng; buurtIndex[b].n++; }
+    }
+    if(d.stadsdeel && d.stadsdeel.trim()) {
+      const s = d.stadsdeel.trim();
+      if(!buurtIndex[s]) buurtIndex[s] = {naam: s, lat: 0, lng: 0, n: 0};
+      if(d.lat && d.lng) { buurtIndex[s].lat += d.lat; buurtIndex[s].lng += d.lng; buurtIndex[s].n++; }
+    }
+  });
+  Object.values(buurtIndex).forEach(b => { if(b.n>0){ b.lat/=b.n; b.lng/=b.n; } });
+  buurten = Object.values(buurtIndex).filter(b=>b.n>0);
+}, 500);
+
+function toggleDarkMode(){
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark-mode', darkMode);
+  document.getElementById('dark-btn').classList.toggle('active', darkMode);
+  document.getElementById('dark-btn').textContent = darkMode ? '☀️' : '🌙';
+  const stijl = darkMode
+    ? 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+    : 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+  deckgl.getMapboxMap()?.setStyle(stijl);
+}
+
+function clusterData(data, zoom) {
+  if (zoom >= 13) return { clusters: [], punten: data };
+  const gridSize = zoom < 10 ? 0.08 : zoom < 12 ? 0.04 : 0.015;
+  const grid = {};
+  data.forEach(d => {
+    const key = `${Math.floor(d.lng/gridSize)}_${Math.floor(d.lat/gridSize)}`;
+    if (!grid[key]) grid[key] = { items: [], lng: 0, lat: 0 };
+    grid[key].items.push(d);
+    grid[key].lng += d.lng;
+    grid[key].lat += d.lat;
+  });
+  const clusters = Object.values(grid).map(g => ({
+    lng: g.lng/g.items.length,
+    lat: g.lat/g.items.length,
+    count: g.items.length,
+    items: g.items,
+  }));
+  return { clusters, punten: [] };
+}
+
+function renderLayers(data){
+  const { clusters, punten } = clusterData(data, huidigZoom);
+
+  const clusterLayer = new ScatterplotLayer({
+    id: 'clusters',
+    data: clusters,
+    getPosition: d=>[d.lng,d.lat],
+    getFillColor: d => {
+      if(d.count > 500) return [15,74,64,240];
+      if(d.count > 100) return [29,122,110,240];
+      if(d.count > 20)  return [29,122,110,220];
+      return [123,198,126,220];
+    },
+    getRadius: d => {
+      if(d.count > 500) return 36;
+      if(d.count > 100) return 28;
+      if(d.count > 20)  return 22;
+      return 16;
+    },
+    radiusUnits: 'pixels',
+    lineWidthMinPixels: 2, stroked: true,
+    getLineColor: [255,255,255,200],
+    pickable: true,
+    autoHighlight: true,
+    highlightColor: [245,166,35,200],
+    onClick: ({object}) => {
+      if(flyerModus && object) {
+        maakFlyerRoute(object.lat, object.lng);
+        return true;
+      }
+      if(object && object.count === 1) openSidebar(object.items[0]);
+      else if(object) {
+        deckgl.setProps({initialViewState:{longitude:object.lng,latitude:object.lat,zoom:huidigZoom+2,transitionDuration:500}});
+      }
+      return true;
+    },
+  });
+
+  const tekstLayer = new deck.TextLayer({
+    id: 'cluster-labels',
+    data: clusters.filter(d => d.count > 1),
+    getPosition: d=>[d.lng,d.lat],
+    getText: d => d.count > 999 ? Math.round(d.count/1000)+'k' : String(d.count),
+    getSize: d => d.count > 100 ? 14 : 12,
+    getColor: [255,255,255,255],
+    fontWeight: 'bold',
+    getTextAnchor: 'middle',
+    getAlignmentBaseline: 'center',
+  });
+
+  const gewone = punten.filter(d=>!d.klant);
+  const klantPunten = punten.filter(d=>d.klant);
+
+  const clickHandler = (object) => {
+    if(!object) return true;
+    if(flyerModus) { flyerPuntKlik(alleData.indexOf(object)); return true; }
+    const zelfde = alleData.filter(d => Math.abs(d.lat-object.lat)<0.00001 && Math.abs(d.lng-object.lng)<0.00001);
+    if(zelfde.length > 1) { toonKeuzeMenu(zelfde, object.lat, object.lng); } else { openSidebar(object); }
+    return true;
+  };
+  const hoverHandler = ({object, x, y}) => {
+    const tip=document.getElementById('tooltip');
+    if(object){ tip.style.display='block'; tip.style.left=(x+12)+'px'; tip.style.top=(y-40)+'px';
+      document.getElementById('tooltip-name').textContent=object.naam;
+      document.getElementById('tooltip-addr').textContent=(object.klant?'★ VVEgemak klant — ':'')+object.straat+' '+object.nr;
+    } else { tip.style.display='none'; }
+  };
+
+  const puntLayer = new ScatterplotLayer({
+    id: 'vves', data: gewone,
+    getPosition: d=>[d.lng,d.lat],
+    getFillColor: d => { if(flyerModus){ const fc=getFlyerKleur(d); return fc||[180,180,180,80]; } return getColor(d); },
+    getRadius: d=>getRadius(totaalFuncties(d)),
+    radiusUnits: 'pixels', radiusMinPixels: 5, radiusMaxPixels: 10,
+    lineWidthMinPixels: 0.5, stroked: true, getLineColor: [255,255,255,180],
+    pickable: true, autoHighlight: true, highlightColor: [50,180,160,255],
+    onClick: ({object})=>clickHandler(object),
+    onHover: hoverHandler,
+  });
+
+  const klantLayer = new ScatterplotLayer({
+    id: 'klanten', data: klantPunten,
+    getPosition: d=>[d.lng,d.lat],
+    getFillColor: [245,166,35,255],
+    getRadius: 10,
+    radiusUnits: 'pixels', radiusMinPixels: 7, radiusMaxPixels: 14,
+    lineWidthMinPixels: 2.5, stroked: true, getLineColor: [255,255,255,255],
+    pickable: true, autoHighlight: true, highlightColor: [255,200,50,255],
+    onClick: ({object})=>clickHandler(object),
+    onHover: hoverHandler,
+  });
+
+  deckgl.setProps({layers:[clusterLayer, tekstLayer, puntLayer, klantLayer]});
+}
+
+function setKlantFilter(val){
+  filters.klant=val;
+  ['all','klant','geen'].forEach(k=>document.getElementById('klant-'+k).classList.toggle('active',k===val));
+  applyFilters();
+}
+
+let _filterTimer = null;
+function applyFiltersDebounced(){ clearTimeout(_filterTimer); _filterTimer = setTimeout(applyFilters, 80); }
+
+function applyFilters(){
+  const kvkQ = document.getElementById('kvk-search').value.trim();
+  const beheerderQ = filters.beheerder && filters.beheerder!=='geen' ? filters.beheerder.toLowerCase() : null;
+  const gefilterd = [];
+  let nPremium=0, nBasic=0, nKlant=0;
+  for(let i=0,len=alleData.length;i<len;i++){
+    const d=alleData[i];
+    if(filters.type==='basic' && d.totaal>=50) continue;
+    if(filters.type==='premium' && d.totaal<50) continue;
+    if(filters.klant==='klant' && !d.klant) continue;
+    if(filters.klant==='geen' && d.klant) continue;
+    if(d.totaal<filters.minApp || d.totaal>filters.maxApp) continue;
+    if(filters.beheerder==='geen' && d.beheerder) continue;
+    if(beheerderQ && !(d.beheerder||'').toLowerCase().includes(beheerderQ)) continue;
+    if(filters.stadsdeel && d.gemeente.toUpperCase()!==filters.stadsdeel.toUpperCase()) continue;
+    if(filters.status && (statussen[d.kvk]||'')!==filters.status) continue;
+    if(kvkQ && !String(d.kvk).includes(kvkQ)) continue;
+    gefilterd.push(d);
+    if(d.totaal>=50) nPremium++; else nBasic++;
+    if(d.klant) nKlant++;
+  }
+  document.getElementById('s-total').textContent=alleData.length.toLocaleString('nl');
+  document.getElementById('s-visible').textContent=gefilterd.length.toLocaleString('nl');
+  document.getElementById('s-premium').textContent=nPremium.toLocaleString('nl');
+  document.getElementById('s-basic').textContent=nBasic.toLocaleString('nl');
+  document.getElementById('leg-premium').textContent=nPremium.toLocaleString('nl');
+  document.getElementById('leg-basic').textContent=nBasic.toLocaleString('nl');
+  document.getElementById('leg-klant').textContent=nKlant.toLocaleString('nl');
+  document.getElementById('s-klant').textContent=nKlant.toLocaleString('nl');
+  renderLayers(gefilterd);
+  updateRangeFill();
+}
+
+function openSidebar(d){
+  currentVvE=d;
+  if(!d || typeof d !== 'object') return;
+  // Zorg dat alle velden bestaan
+  d.naam = d.naam || '';
+  d.straat = d.straat || '';
+  d.nr = d.nr || '';
+  d.postcode = d.postcode || '';
+  d.gemeente = d.gemeente || '';
+  d.kvk = d.kvk || '';
+  d.app = d.app || 0;
+  d.beheerder = d.beheerder || '';
+  d.tel = d.tel || '';
+  d.website = d.website || '';
+  d.email = d.email || '';
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('stats').style.display='none';
+  document.getElementById('fav-popup').style.display = 'none';
+  const km=document.getElementById('keuze-menu'); if(km) km.style.display='none';
+  document.getElementById('flyer-sectie').style.display = flyerModus ? 'block' : 'none';
+  const flyInfo = flyerData[d.kvk];
+  const lcFl = document.getElementById('laatste-flyer');
+  if(flyInfo?.datum) {
+    const datum = new Date(flyInfo.datum).toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
+    lcFl.innerHTML = `<span style="background:#e8f5e9;padding:3px 8px;border-radius:10px;border:1px solid #c8e6c9;">✉ ${datum}</span>`;
+  } else {
+    lcFl.innerHTML = '<span style="color:#aaa;font-size:11px;">Nog niet geflyerd</span>';
+  }
+  document.getElementById('fav-btn').textContent=favorieten.some(f=>f.kvk===d.kvk)?'★':'☆';
+  document.getElementById('sidebar-name').textContent=d.naam;
+  const totaal = (d.app||0) + (d.kantoren||0) + (d.winkels||0) + (d.parkeerplaatsen||0);
+  const isPremium=totaalFuncties(d)>=50;
+  const clr=isPremium?'#1d7a6e':'#7bc67e';
+  const typeBadge=`<span class="badge-app" style="background:${clr}">${d.app>0?d.app+' app. ':''}${d.kantoren>0?d.kantoren+' kantoren ':''}${d.winkels>0?d.winkels+' winkels ':''}${d.parkeerplaatsen>0?d.parkeerplaatsen+' parkeer ':''} — ${isPremium?'Premium':'Basic'}</span>`;
+  const klantBadge=d.klant?`<span class="badge-app" style="background:#f5a623;margin-left:6px;">★ VVEgemak klant</span>`:'';
+  document.getElementById('sidebar-badge').innerHTML=typeBadge+klantBadge;
+  document.getElementById('btn-route').onclick=()=>window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(d.straat+' '+d.nr+', '+d.postcode+' '+d.gemeente)}`);
+  document.getElementById('btn-web').onclick=()=>{ if(d.website && d.website!=='nan') window.open(d.website); };
+  document.getElementById('btn-bel').onclick=()=>{ if(d.tel && d.tel!=='nan') window.open('tel:'+d.tel); };
+
+  const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(d.straat+' '+d.nr+', '+d.postcode+' '+d.gemeente)}`;
+  const vveRows = [
+    {icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M13 6l6 6-6 6"/></svg>`,
+      text:`<a href="${routeUrl}" target="_blank" style="color:#1d7a6e;font-weight:600;text-decoration:none;">Routebeschrijving →</a>`},
+    {icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
+      text:`<span style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">Adres</span><br>${d.straat} ${d.nr} <button onclick="navigator.clipboard.writeText('${d.straat} ${d.nr}, ${d.postcode} ${d.gemeente}');this.innerHTML='✓';setTimeout(()=>this.innerHTML='⧉',2000)" style="border:none;background:none;cursor:pointer;color:#1d7a6e;font-size:15px;">⧉</button><br><span style="font-size:12px;color:#999;">${d.postcode} ${d.gemeente}</span>`},
+    {icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`,
+      text:`<span style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">KvK nummer</span><br>${d.kvk} <button onclick="navigator.clipboard.writeText('${d.kvk}');this.innerHTML='✓';setTimeout(()=>this.innerHTML='⧉',2000)" style="border:none;background:none;cursor:pointer;color:#1d7a6e;font-size:15px;">⧉</button>`},
+    ...(d.bouwjaar && d.bouwjaar > 0 ? [{icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`,
+      text:`<span style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">Bouwjaar</span><br>${d.bouwjaar}`}] : []),
+    ...(d.oppervlakte_m2 && d.oppervlakte_m2 > 0 ? [{icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 3v18"/></svg>`,
+      text:`<span style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">Oppervlakte</span><br>${d.oppervlakte_m2} m²`}] : []),
+    ...(d.pand_status && d.pand_status !== 'nan' && d.pand_status !== '' ? [{icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>`,
+      text:`<span style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">Pand status</span><br>${d.pand_status}`}] : []),
+    ...(d.pand_id && d.pand_id !== 'nan' && d.pand_id !== '' ? [{icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M9 9h6M9 13h6"/></svg>`,
+      text:`<span style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">Pand ID</span><br>${d.pand_id}`}] : []),
+    ...((d.appartementen > 0 || d.kantoren > 0 || d.winkels > 0 || d.parkeerplaatsen > 0) ? [{icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`,
+      text:`<span style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">Functies</span><br>
+        ${d.app > 0 ? `🏠 ${d.app} appartementen<br>` : ''}
+        ${d.kantoren > 0 ? `🏢 ${d.kantoren} kantoren<br>` : ''}
+        ${d.winkels > 0 ? `🛍️ ${d.winkels} winkels<br>` : ''}
+        ${d.parkeerplaatsen > 0 ? `🅿️ ${d.parkeerplaatsen} parkeerplaatsen` : ''}`}] : []),
+    ...(d.mutatiedatum ? [{icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`,
+      text:`<span style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">Laatste eigenaarsmutatie</span><br>${d.mutatiedatum}`}] : []),
+  ];
+
+  const heeftBeheerder = d.beheerder && d.beheerder !== 'nan' && d.beheerder !== '';
+  const telRow = (d.tel && d.tel!=='nan' && d.tel!=='0') ? `
+    <div class="info-row">
+      <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.8 19.8 0 0 1 3.08 4.18 2 2 0 0 1 5.09 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L9.09 9.91a16 16 0 0 0 5 5l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+      <div class="info-text">
+        <a href="tel:${String(d.tel).startsWith('0')||String(d.tel).startsWith('+')?d.tel:'0'+d.tel}" style="color:#1d7a6e;text-decoration:none;font-weight:600;">${String(d.tel).startsWith('0')||String(d.tel).startsWith('+')?d.tel:'0'+d.tel}</a>
+        <button onclick="navigator.clipboard.writeText('${d.tel}');this.innerHTML='✓';setTimeout(()=>this.innerHTML='⧉',2000)" style="border:none;background:none;cursor:pointer;color:#1d7a6e;font-size:15px;margin-left:4px;">⧉</button>
+      </div>
+    </div>` : '';
+  const webRow = (d.website && d.website!=='nan') ? `
+    <div class="info-row">
+      <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></div>
+      <div class="info-text"><a href="${d.website}" target="_blank" style="color:#1d7a6e;font-size:13px;">${d.website.replace(/https?:\/\/www\./,'').replace(/https?:\/\//,'').substring(0,35)}</a></div>
+    </div>` : '';
+  const emailRow = (d.email && d.email!=='nan') ? `
+    <div class="info-row">
+      <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+      <div class="info-text"><a href="mailto:${d.email}" style="color:#1d7a6e;font-size:13px;">${d.email}</a></div>
+    </div>` : '';
+
+  const persoonRij = (label, naam) => naam && naam !== 'nan' && naam !== '' ? `
+    <div class="info-row">
+      <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+      <div class="info-text"><span style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">${label}</span><br><strong>${naam}</strong></div>
+    </div>` : '';
+
+  const beheerderHtml = d.klant ? `
+    <div class="info-card" style="margin-top:10px;border-top:3px solid #f5a623;">
+      <div style="padding:12px 16px 4px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:11px;color:#f5a623;font-weight:700;text-transform:uppercase;letter-spacing:1px;">★ VVEgemak B.V.</span>
+      </div>
+      <div class="info-row">
+        <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></div>
+        <div class="info-text"><a href="https://www.vvegemak.nl" target="_blank" style="color:#1d7a6e;font-size:13px;">www.vvegemak.nl</a></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.8 19.8 0 0 1 3.08 4.18 2 2 0 0 1 5.09 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L9.09 9.91a16 16 0 0 0 5 5l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+        <div class="info-text"><a href="tel:0208207380" style="color:#1d7a6e;text-decoration:none;font-weight:600;">020 - 820 7380</a></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+        <div class="info-text" style="font-size:13px;">Wibautstraat 224<br><span style="color:#999;">1097 DN Amsterdam</span></div>
+      </div>
+      ${d.email && d.email !== 'nan' ? `
+      <div class="info-row">
+        <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+        <div class="info-text"><a href="mailto:${d.email}" style="color:#1d7a6e;font-size:12px;">${d.email}</a></div>
+      </div>` : ''}
+      <div style="padding:10px 16px 4px;font-size:11px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Contactpersonen</div>
+      ${persoonRij('Accountmanager', d.beheerder)}
+      ${persoonRij('Technisch beheerder', d.tech_beheerder)}
+      ${persoonRij('Financieel beheerder', d.fin_beheerder)}
+      ${d.modelreglement && d.modelreglement !== 'nan' ? `
+      <div class="info-row">
+        <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg></div>
+        <div class="info-text"><span style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">Modelreglement</span><br>${d.modelreglement}</div>
+      </div>` : ''}
+      ${d.herbouwwaarde && d.herbouwwaarde !== '' ? `
+      <div class="info-row">
+        <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <div class="info-text"><span style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">Herbouwwaarde</span><br>€ ${Number(d.herbouwwaarde).toLocaleString('nl')}</div>
+      </div>` : ''}
+      ${d.min_reservefonds && d.min_reservefonds !== '' ? `
+      <div class="info-row">
+        <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+        <div class="info-text"><span style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;">Min. reservefonds</span><br>€ ${Number(d.min_reservefonds).toLocaleString('nl')}</div>
+      </div>` : ''}
+    </div>` : `
+    <div class="info-card" style="margin-top:10px;">
+      <div style="padding:12px 16px 4px;font-size:11px;color:#1d7a6e;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Beheerder</div>
+      ${heeftBeheerder ? `
+      <div class="info-row">
+        <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg></div>
+        <div class="info-text"><strong>${d.beheerder}</strong></div>
+      </div>
+      ${telRow}${emailRow}${webRow}
+      ` : `
+      <div class="info-row">
+        <div class="info-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg></div>
+        <div class="info-text" style="color:#aaa;font-style:italic;">Geen beheerder</div>
+      </div>`}
+    </div>`;
+
+  document.getElementById('sidebar-info').innerHTML =
+    '<div class="info-card">' + vveRows.map(r=>`<div class="info-row"><div class="info-icon">${r.icon}</div><div class="info-text">${r.text}</div></div>`).join('') + '</div>' +
+    beheerderHtml;
+  const huidigStatus=statussen[d.kvk]||'';
+  const contact=contactData[d.kvk];
+  document.getElementById('laatste-contact').innerHTML=contact?.laatste?`<span style="background:#fff;padding:3px 8px;border-radius:10px;border:1px solid #eee;">📅 ${contact.laatste}</span>`:'';
+  document.getElementById('status-knoppen').innerHTML=Object.entries(STATUS).filter(([k])=>k!=='').map(([key,val])=>`<button onclick="setStatus('${d.kvk}','${key}')" style="padding:7px 14px;border-radius:25px;border:none;background:${key===huidigStatus?val.bg:'#f0f2f5'};color:${key===huidigStatus?val.tekst:'#999'};font-size:12px;font-weight:${key===huidigStatus?'700':'500'};cursor:pointer;">${val.label}</button>`).join('');
+}
+
+function setStatus(kvk,status){
+  statussen[kvk]=status;
+  localStorage.setItem('vve_statussen',JSON.stringify(statussen));
+  if(['benaderd','niet','gesprek','klant'].includes(status)){
+    if(!contactData[kvk]) contactData[kvk]={};
+    contactData[kvk].laatste=new Date().toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    localStorage.setItem('vve_contact',JSON.stringify(contactData));
+  }
+  document.getElementById('status-knoppen').innerHTML=Object.entries(STATUS).filter(([k])=>k!=='').map(([key,val])=>`<button onclick="setStatus('${kvk}','${key}')" style="padding:7px 14px;border-radius:25px;border:none;background:${key===status?val.bg:'#f0f2f5'};color:${key===status?val.tekst:'#999'};font-size:12px;font-weight:${key===status?'700':'500'};cursor:pointer;">${val.label}</button>`).join('');
+  const contact=contactData[kvk];
+  document.getElementById('laatste-contact').innerHTML=contact?.laatste?`<span style="background:#fff;padding:3px 8px;border-radius:10px;border:1px solid #eee;">📅 ${contact.laatste}</span>`:'';
+  applyFilters();
+}
+
+function toonKeuzeMenu(vves, lat, lng) {
+  const menu = document.getElementById('keuze-menu');
+  const lijst = document.getElementById('keuze-lijst');
+  
+  lijst.innerHTML = vves.map(v => `
+    <div onclick="document.getElementById('keuze-menu').style.display='none';openSidebar(alleData.find(d=>d.kvk==='${v.kvk}'))" 
+      style="padding:10px 12px;border-radius:10px;cursor:pointer;border:1.5px solid #f0f0f0;margin-bottom:8px;transition:all 0.15s;"
+      onmouseover="this.style.borderColor='#1d7a6e';this.style.background='#f0faf9'"
+      onmouseout="this.style.borderColor='#f0f0f0';this.style.background='#fff'">
+      <div style="font-size:12px;font-weight:700;color:#222;margin-bottom:2px;">${v.naam.substring(0,45)}${v.naam.length>45?'...':''}</div>
+      <div style="font-size:11px;color:#999;">${v.app} app — ${totaalFuncties(v)>=50?'Premium':'Basic'}</div>
+    </div>
+  `).join('');
+
+  // Positioneer menu op het midden van het scherm
+  menu.style.display = 'block';
+  menu.style.top = '50%';
+  menu.style.left = '50%';
+  menu.style.transform = 'translate(-50%, -50%)';
+}
+
+function toggleFavoriet(d){
+  if(!d) return;
+  const idx=favorieten.findIndex(f=>f.kvk===d.kvk);
+  if(idx>=0){favorieten.splice(idx,1);document.getElementById('fav-btn').textContent='☆';}
+  else{favorieten.push(d);document.getElementById('fav-btn').textContent='★';}
+  localStorage.setItem('vve_favorieten',JSON.stringify(favorieten));
+}
+
+function toonFavorieten(){
+  const popup = document.getElementById('fav-popup');
+  const isOpen = popup.style.display === 'flex';
+  popup.style.display = isOpen ? 'none' : 'flex';
+  if(!isOpen) {
+    // Sluit sidebar en keuze menu
+    document.getElementById('sidebar').classList.remove('open');
+    const km=document.getElementById('keuze-menu'); if(km) km.style.display='none';
+    updateFavLijst();
+  }
+}
+
+function updateFavLijst(){
+  const lijst = document.getElementById('fav-lijst');
+  if(!favorieten.length){
+    lijst.innerHTML = '<div style="text-align:center;padding:30px 20px;color:#aaa;"><div style="font-size:32px;margin-bottom:10px;">☆</div><div style="font-size:14px;">Nog geen favorieten</div><div style="font-size:12px;margin-top:6px;">Klik op ☆ bij een VvE</div></div>';
+    return;
+  }
+  lijst.innerHTML = favorieten.map(f => `
+    <div onclick="gaNaarFavoriet('${f.kvk}')" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:8px;border:1.5px solid #f0f0f0;transition:all 0.15s;"
+      onmouseover="this.style.borderColor='#1d7a6e';this.style.background='#f0faf9'"
+      onmouseout="this.style.borderColor='#f0f0f0';this.style.background='#fff'">
+      <div style="width:40px;height:40px;border-radius:10px;background:${totaalFuncties(f)>=50?'#1d7a6e':'#7bc67e'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="20" height="20" viewBox="0 0 100 100" fill="none"><rect x="18" y="32" width="26" height="52" rx="3" fill="#fff" opacity="0.9"/><rect x="54" y="16" width="26" height="68" rx="3" fill="#fff"/></svg>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:700;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.naam.substring(0,35)}${f.naam.length>35?'...':''}</div>
+        <div style="font-size:11px;color:#999;margin-top:2px;">${f.straat} ${f.nr} — ${f.app} app.</div>
+        <div style="font-size:11px;color:${totaalFuncties(f)>=50?'#1d7a6e':'#7bc67e'};font-weight:600;margin-top:2px;">${totaalFuncties(f)>=50?'Premium':'Basic'}</div>
+      </div>
+      <button onclick="event.stopPropagation();verwijderFavoriet('${f.kvk}')" style="background:none;border:none;cursor:pointer;color:#ddd;font-size:18px;padding:4px;"
+        onmouseover="this.style.color='#e05'" onmouseout="this.style.color='#ddd'">×</button>
+    </div>
+  `).join('');
+}
+
+function gaNaarFavoriet(kvk) {
+  const d = alleData.find(f => f.kvk === kvk);
+  if(!d || !d.lat) return;
+  document.getElementById('fav-popup').style.display = 'none';
+  deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:800}});
+  setTimeout(() => openSidebar(d), 900);
+}
+
+function verwijderFavoriet(kvk) {
+  favorieten = favorieten.filter(f => f.kvk !== kvk);
+  localStorage.setItem('vve_favorieten', JSON.stringify(favorieten));
+  updateFavLijst();
+  if(currentVvE && currentVvE.kvk === kvk) {
+    document.getElementById('fav-btn').textContent = '☆';
+  }
+}
+
+async function zoekEnGa(q) {
+  if(!q || q.length < 2) return;
+  document.getElementById('search-results').style.display='none';
+
+  // Stap 1: zoek VvE op naam
+  const vveMatch = alleData.find(d => d.naam.toLowerCase().includes(q.toLowerCase()));
+  if(vveMatch) { selectResult(alleData.indexOf(vveMatch)); return; }
+
+  // Stap 2: zoek straat
+  const straatMatch = alleData.find(d => d.straat.toLowerCase().includes(q.toLowerCase()));
+  if(straatMatch) { selectResult(alleData.indexOf(straatMatch)); return; }
+
+  // Stap 3: zoek gemeente in onze data en centreer kaart daarop
+  const gemeenteMatches = alleData.filter(d => d.gemeente.toLowerCase().includes(q.toLowerCase()) && d.lat && d.lng);
+  if(gemeenteMatches.length > 0) {
+    const avgLat = gemeenteMatches.reduce((s,d)=>s+d.lat,0)/gemeenteMatches.length;
+    const avgLng = gemeenteMatches.reduce((s,d)=>s+d.lng,0)/gemeenteMatches.length;
+    viegNaarLocatie(avgLat, avgLng, q);
+    return;
+  }
+
+  // Stap 4: zoek postcode
+  const pcMatch = alleData.find(d => d.postcode.toLowerCase().startsWith(q.toLowerCase()));
+  if(pcMatch) { selectResult(alleData.indexOf(pcMatch)); return; }
+
+  // Stap 5: Nominatim als fallback
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+' Amsterdam Nederland')}&format=json&limit=3&countrycodes=nl&accept-language=nl`, {headers:{'User-Agent':'VVEgemak/1.0'}});
+    const results = await r.json();
+    const buurt = results.find(x => ['suburb','neighbourhood','city','town','village','quarter','district','municipality'].includes(x.type) || x.class==='place' || x.class==='boundary');
+    if(buurt) { viegNaarLocatie(buurt.lat, buurt.lon, buurt.display_name.split(',')[0]); return; }
+    if(results[0]) { viegNaarLocatie(results[0].lat, results[0].lon, results[0].display_name.split(',')[0]); }
+  } catch(e) {}
+}
+
+async function zoek(q){
+  const res=document.getElementById('search-results');
+  if(!q||q.length<2){res.style.display='none';return;}
+  
+  // Zoek in VvE data
+  const matches=alleData.filter(d=>
+    d.naam.toLowerCase().includes(q.toLowerCase())||
+    d.straat.toLowerCase().includes(q.toLowerCase())||
+    d.gemeente.toLowerCase().includes(q.toLowerCase())||
+    d.postcode.toLowerCase().includes(q.toLowerCase())
+  ).slice(0,6);
+
+  let html = matches.map(d=>`<div class="search-result" onmousedown="selectResult(${alleData.indexOf(d)})"><div>${d.naam}</div><div class="search-sub">${d.straat} ${d.nr} — ${d.gemeente}</div></div>`).join('');
+
+  // Zoek lokaal in buurt-index (instant, geen API nodig)
+  const buurtTreffers = buurten.filter(b => b.naam.toLowerCase().includes(q.toLowerCase())).slice(0,3);
+  buurtTreffers.forEach(b => {
+    html += `<div class="search-result" onmousedown="viegNaarLocatie(${b.lat},${b.lng},'${b.naam.replace(/'/g,'')}')" style="border-top:1px solid #eee;">
+      <div style="display:flex;align-items:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1d7a6e" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/></svg>${b.naam}</div>
+      <div class="search-sub">Buurt / wijk</div>
+    </div>`;
+  });
+  // Nominatim alleen als buurt-index niks vindt
+  if(buurtTreffers.length === 0) {
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+' Amsterdam')}&format=json&limit=2&countrycodes=nl&accept-language=nl`);
+      const geoResults = await r.json();
+      geoResults.forEach(g => {
+        const naam = g.display_name.split(',')[0];
+        html += `<div class="search-result" onmousedown="viegNaarLocatie(${g.lat},${g.lon},'${naam.replace(/'/g,'')}')" style="border-top:1px solid #eee;">
+          <div style="display:flex;align-items:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1d7a6e" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/></svg>${naam}</div>
+          <div class="search-sub">Buurt / wijk / gemeente</div>
+        </div>`;
+      });
+    } catch(e) {}
+  }
+
+  if(!html){res.style.display='none';return;}
+  res.innerHTML=html;
+  res.style.display='block';
+}
+
+function viegNaarLocatie(lat, lng, naam) {
+  deckgl.setProps({initialViewState:{longitude:parseFloat(lng),latitude:parseFloat(lat),zoom:13,transitionDuration:800}});
+  document.getElementById('search-results').style.display='none';
+  document.getElementById('search-input').value=naam;
+}
+
+function selectResult(idx){
+  const d=alleData[idx];
+  deckgl.setProps({initialViewState:{longitude:d.lng,latitude:d.lat,zoom:17,transitionDuration:800}});
+  document.getElementById('search-results').style.display='none';
+  document.getElementById('search-input').value='';
+  openSidebar(d);
+}
+
+function toonRecente(){}
+function setType(type){
+  filters.type=type;
+  ['all','basic','premium'].forEach(t=>document.getElementById('type-'+t).classList.toggle('active',t===type));
+  applyFilters();
+}
+function setStadsdeel(btn,sd){
+  filters.stadsdeel=sd;
+  document.querySelectorAll('.stadsdeel-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); applyFilters();
+}
+function setStatusFilter(btn,status){
+  filters.status=status;
+  document.querySelectorAll('.status-filter-btn').forEach(b=>{b.style.fontWeight='500';b.style.background='#f0f2f5';b.style.color='#999';});
+  btn.style.fontWeight='700'; btn.style.background=status===''?'#1d7a6e':STATUS[status].bg; btn.style.color='#fff';
+  applyFilters();
+}
+function filterBeheerderList(q){
+  document.querySelectorAll('#beheerder-list .beh-option').forEach((el,i)=>{
+    if(i<2) return;
+    el.style.display=el.textContent.toLowerCase().includes(q.toLowerCase())?'block':'none';
+  });
+  document.getElementById('beheerder-list').style.display='block';
+}
+function selectBeheerder(val){
+  filters.beheerder=val;
+  document.getElementById('f-beheerder-input').value=val===''?'':val==='geen'?'Zonder beheerder':val;
+  document.getElementById('beheerder-list').style.display='none';
+  applyFilters();
+}
+function syncFromSlider(which){
+  let min=parseInt(document.getElementById('slider-min').value);
+  let max=parseInt(document.getElementById('slider-max').value);
+  if(min>max){if(which==='min')min=max;else max=min;}
+  document.getElementById('slider-min').value=min; document.getElementById('slider-max').value=max;
+  document.getElementById('min-input').value=min; document.getElementById('max-input').value=max;
+  applyFiltersDebounced();
+}
+function syncFromInput(){
+  let min=Math.max(2,Math.min(500,parseInt(document.getElementById('min-input').value)||2));
+  let max=Math.max(2,Math.min(500,parseInt(document.getElementById('max-input').value)||500));
+  document.getElementById('slider-min').value=min; document.getElementById('slider-max').value=max;
+  applyFiltersDebounced();
+}
+function updateRangeFill(){
+  const min=parseInt(document.getElementById('slider-min').value);
+  const max=parseInt(document.getElementById('slider-max').value);
+  document.getElementById('range-fill').style.left=((min-2)/498*100)+'%';
+  document.getElementById('range-fill').style.width=((max-min)/498*100)+'%';
+}
+function toggleFilters(){
+  document.getElementById('filter-panel').classList.toggle('open');
+  document.getElementById('filter-btn').classList.toggle('active');
+}
+function resetFilters(){
+  filters={type:'all',minApp:0,maxApp:2000,beheerder:'',stadsdeel:'',status:''};
+  document.getElementById('min-input').value=2; document.getElementById('max-input').value=500;
+  document.getElementById('slider-min').value=2; document.getElementById('slider-max').value=500;
+  document.getElementById('f-beheerder-input').value=''; document.getElementById('kvk-search').value='';
+  document.querySelectorAll('.stadsdeel-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  ['all','basic','premium'].forEach(t=>document.getElementById('type-'+t).classList.toggle('active',t==='all'));
+  applyFilters();
+}
+function nearestNeighborSort(data) {
+  if (!data.length) return data;
+  // Begin bij meest noordwestelijke punt
+  const sorted = [];
+  const resterend = [...data];
+  let huidig = resterend.splice(
+    resterend.reduce((bi, d, i) => (d.lat + d.lng < resterend[bi].lat + resterend[bi].lng ? bi : i), 0), 1
+  )[0];
+  sorted.push(huidig);
+  while (resterend.length) {
+    let dichtstbij = 0;
+    let minDist = Infinity;
+    resterend.forEach((d, i) => {
+      const dist = Math.pow(d.lng - huidig.lng, 2) + Math.pow(d.lat - huidig.lat, 2);
+      if (dist < minDist) { minDist = dist; dichtstbij = i; }
+    });
+    huidig = resterend.splice(dichtstbij, 1)[0];
+    sorted.push(huidig);
+  }
+  return sorted;
+}
+
+function exporteerExcel(){
+  const kvkQ = document.getElementById('kvk-search').value.trim();
+  let gefilterd = alleData.filter(d=>{
+    if(filters.type==='basic'&&totaalFuncties(d)>=50) return false;
+    if(filters.type==='premium'&&totaalFuncties(d)<50) return false;
+    if(totaalFuncties(d)<filters.minApp||totaalFuncties(d)>filters.maxApp) return false;
+    if(filters.beheerder==='geen'&&d.beheerder) return false;
+    if(filters.beheerder&&filters.beheerder!=='geen'&&d.beheerder!==filters.beheerder) return false;
+    if(filters.stadsdeel&&d.gemeente.toUpperCase()!==filters.stadsdeel.toUpperCase()) return false;
+    if(filters.status&&(statussen[d.kvk]||'')!==filters.status) return false;
+    if(kvkQ&&!String(d.kvk).includes(kvkQ)) return false;
+    return true;
+  });
+
+  // Sorteer op geografische nabijheid (nearest neighbor)
+  gefilterd = nearestNeighborSort(gefilterd);
+
+  const headers = ['#','VvE Naam','Straat','Nr','Postcode','Gemeente','Appartementen','Type','Beheerder','KvK','Status'];
+  const rows = gefilterd.map((d, i) => [
+    i+1, d.naam, d.straat, d.nr, d.postcode, d.gemeente, d.stadsdeel,
+    d.app, totaalFuncties(d)>=50?'Premium':'Basic', d.beheerder||'', d.kvk,
+    statussen[d.kvk] ? {nieuw:'Nieuw',benaderd:'Benaderd',gesprek:'In gesprek',klant:'Klant',niet:'Niet geïnteresseerd'}[statussen[d.kvk]] : ''
+  ]);
+
+  const csv = [headers, ...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'}));
+  a.download = `VVEgemak_export_${new Date().toLocaleDateString('nl-NL').replace(/\//g,'-')}.csv`;
+  a.click();
+}
+
+let flyerStraal = 500;
+let flyerFilter = 'alle';
+let flyerStartpunt = null;
+let flyerRoute = [];
+let flyerZichtbaar = 5;
+
+// Nieuwe flyer modus state
+let flyerType = null;        // 'basic' of 'premium'
+let flyerStadsdeel = null;
+let flyerGeselecteerdeBuurten = [];
+let flyerGekozeneFlyer = null;
+let flyerHuidigeRoute = [];
+let flyerSessieStart = null;
+
+function getFlyerKleur(d) {
+  if (!flyerModus) return null;
+  if (d.klant) return null;
+  const fd = flyerData[String(d.kvk)];
+  const nu = Date.now();
+  const dag = 1000*60*60*24;
+  if (!fd || !fd.bezoek1) return [245,149,0,255]; // oranje - nooit
+  if (fd.klaar) {
+    const herstart = new Date(fd.herstart).getTime();
+    if (nu >= herstart) return [245,149,0,255]; // oranje - herstart
+    return [180,180,180,160]; // grijs - klaar
+  }
+  const b1 = fd.bezoek1?.datum, b2 = fd.bezoek2?.datum, b3 = fd.bezoek3?.datum;
+  if (b3) return [180,180,180,160]; // grijs (klaar maar klaar niet gezet)
+  const lastDatum = b2 || b1;
+  const dagGeleden = (nu - new Date(lastDatum).getTime()) / dag;
+  const volgend = b2 ? 3 : 2;
+  if (dagGeleden < 14) return [245,197,50,255]; // geel - te vroeg
+  if (dagGeleden > 28) return [231,76,60,255];  // rood - te laat
+  return volgend === 2 ? [39,174,96,255] : [52,152,219,255]; // groen=b2 blauw=b3
+}
+
+function flyerNaarStap(n) {
+  [1,2,3,4,5,6].forEach(i => document.getElementById('flyer-s'+i).style.display = i===n?'block':'none');
+  [1,2,3,4,5].forEach(i => document.getElementById('fstap-'+i).style.background = i<=n?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.3)');
+  document.getElementById('flyer-stap-label').textContent = `Stap ${Math.min(n,5)} van 5`;
+  applyFilters();
+}
+
+function flyerKiesType(type) {
+  flyerType = type;
+  // Bouw stadsdeel lijst
+  const vves = alleData.filter(d => !d.klant && d.lat && d.lng && d.gemeente==='AMSTERDAM' &&
+    (type==='basic' ? d.totaal < 50 : d.totaal >= 50));
+  const sdTelling = {};
+  vves.forEach(d => {
+    const sd = d.stadsdeel || 'Onbekend';
+    if (!sdTelling[sd]) sdTelling[sd] = {totaal:0, aantBeurt:0};
+    sdTelling[sd].totaal++;
+    const kleur = getFlyerKleurStatus(d);
+    if (kleur !== 'grijs') sdTelling[sd].aantBeurt++;
+  });
+  const gesorteerd = Object.entries(sdTelling).sort((a,b)=>b[1].aantBeurt-a[1].aantBeurt);
+  document.getElementById('flyer-stadsdeel-lijst').innerHTML = gesorteerd.map(([sd,tel])=>`
+    <button onclick="flyerKiesStadsdeel('${sd.replace(/'/g,'')}')" style="width:100%;padding:13px 16px;border-radius:12px;border:1.5px solid #e8e8e8;background:#fff;cursor:pointer;margin-bottom:8px;text-align:left;display:flex;justify-content:space-between;align-items:center;transition:all 0.15s;" onmouseover="this.style.borderColor='#1d7a6e'" onmouseout="this.style.borderColor='#e8e8e8'">
+      <span style="font-size:14px;font-weight:600;color:#222;">${sd}</span>
+      <span style="font-size:12px;color:#1d7a6e;font-weight:700;">${tel.aantBeurt} aan de beurt</span>
+    </button>`).join('');
+  flyerNaarStap(2);
+}
+
+function getFlyerKleurStatus(d) {
+  const fd = flyerData[String(d.kvk)];
+  const nu = Date.now(); const dag = 1000*60*60*24;
+  if (!fd || !fd.bezoek1) return 'oranje';
+  if (fd.klaar) { return new Date(fd.herstart).getTime() <= nu ? 'oranje' : 'grijs'; }
+  const lastDatum = fd.bezoek2?.datum || fd.bezoek1.datum;
+  const dagGeleden = (nu - new Date(lastDatum).getTime()) / dag;
+  if (dagGeleden < 14) return 'geel';
+  if (dagGeleden > 28) return 'rood';
+  return fd.bezoek2 ? 'blauw' : 'groen';
+}
+
+function flyerKiesStadsdeel(sd) {
+  flyerStadsdeel = sd;
+  flyerGeselecteerdeBuurten = [];
+  const vves = alleData.filter(d => !d.klant && d.lat && d.lng && d.gemeente==='AMSTERDAM' && d.stadsdeel===sd &&
+    (flyerType==='basic' ? d.totaal < 50 : d.totaal >= 50));
+  const buurtTelling = {};
+  vves.forEach(d => {
+    const b = d.buurt || 'Onbekend';
+    if (!buurtTelling[b]) buurtTelling[b] = {totaal:0, kleur:{}};
+    buurtTelling[b].totaal++;
+    const k = getFlyerKleurStatus(d);
+    buurtTelling[b].kleur[k] = (buurtTelling[b].kleur[k]||0)+1;
+  });
+  const kleurLabel = {oranje:'🟠 nieuw',groen:'🟢 b2',blauw:'🔵 b3',rood:'🔴 laat',geel:'🟡 vroeg',grijs:'⚫ klaar'};
+  document.getElementById('flyer-buurt-lijst').innerHTML = Object.entries(buurtTelling).sort((a,b)=>b[1].totaal-a[1].totaal).map(([b,tel])=>{
+    const kleuren = Object.entries(tel.kleur).map(([k,n])=>`${kleurLabel[k]||k} (${n})`).join(' · ');
+    return `<label style="display:flex;align-items:flex-start;gap:10px;background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;border:1.5px solid #e8e8e8;" onclick="this.querySelector('input').click();this.style.borderColor=this.querySelector('input').checked?'#1d7a6e':'#e8e8e8';">
+      <input type="checkbox" value="${b.replace(/"/g,'')}" onchange="flyerBuurtToggle(this)" style="margin-top:2px;accent-color:#1d7a6e;width:16px;height:16px;">
+      <div><div style="font-size:13px;font-weight:600;color:#222;">${b}</div><div style="font-size:11px;color:#999;margin-top:2px;">${tel.totaal} VvEs · ${kleuren}</div></div>
+    </label>`;
+  }).join('');
+  flyerNaarStap(3);
+}
+
+function flyerBuurtToggle(cb) {
+  if (cb.checked) flyerGeselecteerdeBuurten.push(cb.value);
+  else flyerGeselecteerdeBuurten = flyerGeselecteerdeBuurten.filter(b=>b!==cb.value);
+  document.getElementById('flyer-buurt-btn').style.display = flyerGeselecteerdeBuurten.length ? 'block' : 'none';
+}
+
+function flyerBevestigBuurten() {
+  // Bepaal welke flyers al gebruikt zijn in geselecteerde buurten
+  const vves = alleData.filter(d => !d.klant && d.lat && d.lng && flyerGeselecteerdeBuurten.includes(d.buurt) &&
+    (flyerType==='basic' ? d.totaal < 50 : d.totaal >= 50));
+  const gebruikteFlyersTelling = {};
+  vves.forEach(d => {
+    const fd = flyerData[String(d.kvk)];
+    if (fd) {
+      [fd.bezoek1, fd.bezoek2, fd.bezoek3].filter(Boolean).forEach(b => {
+        gebruikteFlyersTelling[b.flyer] = (gebruikteFlyersTelling[b.flyer]||0)+1;
+      });
+    }
+  });
+  // Markeer al-gebruikte flyers
+  document.querySelectorAll('.flyer-type-btn').forEach(btn => {
+    const naam = btn.querySelector('div').textContent.replace(/^[^ ]+ /,'').replace(' flyer','').trim();
+    const gebruikt = gebruikteFlyersTelling[naam] || 0;
+    if (gebruikt > 0) btn.querySelector('div').innerHTML += ` <span style="font-size:11px;color:#999;">(${gebruikt}× gedaan)</span>`;
+  });
+  flyerNaarStap(4);
+}
+
+function flyerKiesFlyer(type, el) {
+  flyerGekozeneFlyer = type;
+  document.querySelectorAll('.flyer-type-btn').forEach(b => b.style.borderColor='#e0e0e0');
+  if(el) el.style.borderColor = '#1d7a6e';
+  flyerBouwRoute();
+}
+
+function flyerBouwRoute() {
+  const vves = alleData.filter(d => !d.klant && d.lat && d.lng && flyerGeselecteerdeBuurten.includes(d.buurt) &&
+    (flyerType==='basic' ? d.totaal < 50 : d.totaal >= 50));
+  // Sorteer met nearest-neighbor vanuit centroid van geselecteerde buurten
+  const centLat = vves.reduce((s,d)=>s+d.lat,0)/vves.length;
+  const centLng = vves.reduce((s,d)=>s+d.lng,0)/vves.length;
+  const resterend = [...vves];
+  flyerHuidigeRoute = [];
+  let huidig = {lat:centLat, lng:centLng};
+  // GPS positie gebruiken als startpunt indien beschikbaar
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      huidig = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+      flyerSorteerRoute(resterend, huidig);
+    }, () => flyerSorteerRoute(resterend, huidig));
+  } else { flyerSorteerRoute(resterend, huidig); }
+}
+
+function flyerSorteerRoute(vves, start) {
+  const resterend = [...vves];
+  flyerHuidigeRoute = [];
+  let huidig = start;
+  while(resterend.length) {
+    let idx=0, minD=Infinity;
+    resterend.forEach((d,i)=>{ const dist=afstand(huidig.lat,huidig.lng,d.lat,d.lng); if(dist<minD){minD=dist;idx=i;} });
+    huidig = resterend.splice(idx,1)[0];
+    flyerHuidigeRoute.push(huidig);
+  }
+  flyerSessieStart = Date.now();
+  flyerToonRoute();
+  flyerNaarStap(5);
+}
+
+function flyerToonRoute() {
+  const n = flyerHuidigeRoute.length;
+  document.getElementById('flyer-route-badge').textContent = n + ' VvEs';
+  const buurtenStr = [...new Set(flyerGeselecteerdeBuurten)].join(', ');
+  document.getElementById('flyer-route-info').innerHTML = `<strong>${flyerGekozeneFlyer} flyer</strong> · ${flyerType==='basic'?'Basic':'Premium'} · ${buurtenStr}`;
+  const dag = 1000*60*60*24;
+  document.getElementById('flyer-route-lijst').innerHTML = flyerHuidigeRoute.map((d,i)=>{
+    const fd = flyerData[String(d.kvk)];
+    const b1=fd?.bezoek1, b2=fd?.bezoek2, b3=fd?.bezoek3;
+    const bezoekNum = b3?3:b2?2:b1?1:0;
+    const volgend = bezoekNum+1;
+    const kleur = getFlyerKleurStatus(d);
+    const kleurHex = {oranje:'#f59500',groen:'#27ae60',blauw:'#3498db',rood:'#e74c3c',geel:'#f5c542',grijs:'#bbb'}[kleur]||'#bbb';
+    const gedaanFlyersTxt = [b1,b2,b3].filter(Boolean).map(b=>b.flyer).join(' → ');
+    return `<div onclick="flyerPuntKlik(${alleData.indexOf(d)})" style="background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;border-left:4px solid ${kleurHex};display:flex;gap:10px;align-items:flex-start;">
+      <div style="font-size:18px;font-weight:800;color:${kleurHex};min-width:24px;">${i+1}</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:700;color:#222;">${d.straat} ${d.nr}</div>
+        <div style="font-size:11px;color:#888;margin-top:2px;">${d.naam.replace(/ TE [A-Z]+$/,'').substring(0,40)}</div>
+        <div style="font-size:11px;color:#999;margin-top:3px;">Bezoek ${volgend} · ${gedaanFlyersTxt||'Nog niet gedaan'}</div>
+      </div>
+    </div>`;
+  }).join('');
+  applyFilters();
+}
+
+function flyerPuntKlik(idx) {
+  const d = alleData[idx];
+  if (!d) return;
+  deckgl.setProps({initialViewState:{longitude:d.lng,latitude:d.lat,zoom:17,transitionDuration:600}});
+  // Toon mini popup
+  const info = document.getElementById('tooltip');
+  document.getElementById('tooltip-name').textContent = d.naam;
+  document.getElementById('tooltip-addr').textContent = d.straat+' '+d.nr;
+  info.style.display='block';
+  setTimeout(()=>info.style.display='none',3000);
+}
+
+function flyerSessieKlaar() {
+  const n = flyerHuidigeRoute.length;
+  const minuten = flyerSessieStart ? Math.round((Date.now()-flyerSessieStart)/60000) : 0;
+  document.getElementById('flyer-klaar-samenvatting').textContent = `${n} VvEs geflyerd in ${flyerGeselecteerdeBuurten.join(', ')}`;
+  document.getElementById('flyer-uur').value = Math.floor(minuten/60);
+  document.getElementById('flyer-min').value = minuten%60;
+  flyerNaarStap(6);
+}
+
+function flyerOpslaanTijd() {
+  const uur = parseInt(document.getElementById('flyer-uur').value)||0;
+  const min = parseInt(document.getElementById('flyer-min').value)||0;
+  const datum = new Date().toISOString().split('T')[0];
+  // Sla bezoek op voor alle VvEs in route
+  flyerHuidigeRoute.forEach(d => {
+    const kvk = String(d.kvk);
+    if (!flyerData[kvk]) flyerData[kvk] = {};
+    const fd = flyerData[kvk];
+    const nieuwBezoek = {datum, flyer: flyerGekozeneFlyer, duur: uur*60+min};
+    if (!fd.bezoek1) fd.bezoek1 = nieuwBezoek;
+    else if (!fd.bezoek2) fd.bezoek2 = nieuwBezoek;
+    else if (!fd.bezoek3) {
+      fd.bezoek3 = nieuwBezoek;
+      fd.klaar = true;
+      fd.herstart = new Date(new Date(fd.bezoek1.datum).getTime()+365*24*60*60*1000).toISOString().split('T')[0];
+    }
+  });
+  localStorage.setItem('vve_flyer', JSON.stringify(
+    Object.fromEntries(Object.entries(flyerData).filter(([k])=>!flyerDataInit?.[k] || JSON.stringify(flyerData[k])!==JSON.stringify(flyerDataInit[k])))
+  ));
+  sluitFlyerPanel();
+  applyFilters();
+}
+
+// ── Pincode ──────────────────────────────────────────
+let _pinBuffer = '';
+let _pinLocked = false;
+const PIN_DEFAULT = '1234';
+
+function getPincode() { return localStorage.getItem('vve_pin') || PIN_DEFAULT; }
+
+function toonPinModal() {
+  if (_pinLocked) return;
+  _pinBuffer = '';
+  pinUpdateDots();
+  document.getElementById('pin-msg').textContent = 'Voer de pincode in';
+  document.getElementById('pin-msg').style.color = '#999';
+  document.getElementById('pin-overlay').style.display = 'flex';
+}
+
+function sluitPinModal() {
+  document.getElementById('pin-overlay').style.display = 'none';
+  _pinBuffer = '';
+}
+
+function pinInvoer(cijfer) {
+  if (_pinBuffer.length >= 4) return;
+  _pinBuffer += cijfer;
+  pinUpdateDots();
+  if (_pinBuffer.length === 4) {
+    setTimeout(pinControleer, 200);
+  }
+}
+
+function pinWis() {
+  _pinBuffer = _pinBuffer.slice(0, -1);
+  pinUpdateDots();
+}
+
+function pinUpdateDots() {
+  document.querySelectorAll('.pin-dot').forEach((dot, i) => {
+    dot.style.background = i < _pinBuffer.length ? '#1d7a6e' : '#fff';
+    dot.style.borderColor = i < _pinBuffer.length ? '#1d7a6e' : '#ddd';
+  });
+}
+
+function pinControleer() {
+  if (_pinBuffer === getPincode()) {
+    sluitPinModal();
+    _openFlyerModus();
+  } else {
+    document.getElementById('pin-msg').textContent = 'Onjuiste pincode, probeer opnieuw';
+    document.getElementById('pin-msg').style.color = '#e74c3c';
+    document.querySelectorAll('.pin-dot').forEach(d => { d.style.background='#e74c3c'; d.style.borderColor='#e74c3c'; });
+    setTimeout(() => { _pinBuffer = ''; pinUpdateDots(); document.getElementById('pin-msg').textContent='Voer de pincode in'; document.getElementById('pin-msg').style.color='#999'; }, 800);
+  }
+}
+
+// ─────────────────────────────────────────────────────
+
+function _openFlyerModus() {
+  flyerModus = true;
+  const btn = document.getElementById('flyer-btn');
+  btn.style.background = '#1d7a6e';
+  btn.style.color = '#fff';
+  document.getElementById('flyer-panel').style.display = 'block';
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('fav-top-btn').style.display = 'none';
+  document.getElementById('export-top-btn').style.display = 'none';
+  document.getElementById('stats').style.display = 'none';
+  document.getElementById('legenda').style.display = 'none';
+  document.getElementById('search-bar').style.display = 'none';
+  flyerNaarStap(1);
+  applyFilters();
+}
+
+function toggleFlyerModus() {
+  if (!flyerModus) {
+    toonPinModal();
+  } else {
+    // sluiten
+    flyerModus = false;
+    document.getElementById('flyer-btn').style.background = 'rgba(255,255,255,0.95)';
+    document.getElementById('flyer-btn').style.color = '#333';
+    document.getElementById('flyer-panel').style.display = 'none';
+    flyerStartpunt = null;
+    document.getElementById('fav-top-btn').style.display = '';
+    document.getElementById('export-top-btn').style.display = '';
+    document.getElementById('stats').style.display = '';
+    document.getElementById('legenda').style.display = '';
+    document.getElementById('search-bar').style.display = '';
+    applyFilters();
+  }
+}
+
+function sluitFlyerPanel() {
+  flyerModus = false;
+  document.getElementById('flyer-btn').style.background = 'rgba(255,255,255,0.95)';
+  document.getElementById('flyer-btn').style.color = '#333';
+  document.getElementById('flyer-panel').style.display = 'none';
+  flyerStartpunt = null;
+  applyFilters();
+}
+
+function setStraal(btn, straal) {
+  flyerStraal = straal;
+  document.querySelectorAll('.straal-btn').forEach(b => { b.style.background='#f0f2f5'; b.style.color='#999'; b.style.fontWeight='500'; });
+  btn.style.background = '#1d7a6e'; btn.style.color = '#fff'; btn.style.fontWeight = '700';
+  if(flyerStartpunt) maakFlyerRoute(flyerStartpunt.lat, flyerStartpunt.lng);
+}
+
+function setFlyerFilter(btn, filter) {
+  flyerFilter = filter;
+  document.querySelectorAll('.flyer-filter-btn').forEach(b => { b.style.background='#f0f2f5'; b.style.color='#999'; b.style.fontWeight='500'; });
+  btn.style.background = '#1d7a6e'; btn.style.color = '#fff'; btn.style.fontWeight = '700';
+  if(flyerStartpunt) maakFlyerRoute(flyerStartpunt.lat, flyerStartpunt.lng);
+}
+
+function getFlyerKleur(kvk) {
+  if(!flyerModus) return null;
+  const d = flyerData[kvk];
+  if(!d || !d.datum) return [220,53,69,220]; // rood = nooit
+  const dagen = (Date.now() - new Date(d.datum).getTime()) / (1000*60*60*24);
+  if(dagen > 90) return [245,166,35,220]; // oranje = oud
+  return [29,122,110,230]; // donkergroen = recent
+}
+
+function markeerGeflyerd(d) {
+  if(!d) return;
+  if(!flyerData[d.kvk]) flyerData[d.kvk] = {};
+  flyerData[d.kvk].datum = new Date().toISOString();
+  localStorage.setItem('vve_flyer', JSON.stringify(flyerData));
+  
+  const nu = new Date().toLocaleDateString('nl-NL', {day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('laatste-flyer').innerHTML = `<span style="background:#e8f5e9;padding:3px 8px;border-radius:10px;border:1px solid #c8e6c9;">✉ ${nu}</span>`;
+  
+  applyFilters();
+  if(flyerStartpunt) maakFlyerRoute(flyerStartpunt.lat, flyerStartpunt.lng);
+}
+
+function afstand(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function maakFlyerRoute(lat, lng) {
+  flyerStartpunt = {lat, lng};
+  
+  // Filter VvEs in straal
+  let inStraal = alleData.filter(d => d.lat && d.lng && afstand(lat, lng, d.lat, d.lng) <= flyerStraal);
+  
+  // Filter op flyer status
+  if(flyerFilter === 'nooit') inStraal = inStraal.filter(d => !flyerData[d.kvk]?.datum);
+  if(flyerFilter === 'oud') inStraal = inStraal.filter(d => {
+    if(!flyerData[d.kvk]?.datum) return true;
+    return (Date.now() - new Date(flyerData[d.kvk].datum).getTime()) / (1000*60*60*24) > 90;
+  });
+
+  // Stats
+  const nooit = inStraal.filter(d => !flyerData[d.kvk]?.datum).length;
+  const oud = inStraal.filter(d => { if(!flyerData[d.kvk]?.datum) return false; return (Date.now()-new Date(flyerData[d.kvk].datum).getTime())/(1000*60*60*24)>90; }).length;
+  const recent = inStraal.length - nooit - oud;
+  document.getElementById('fs-totaal').textContent = inStraal.length;
+  document.getElementById('fs-nooit').textContent = nooit;
+  document.getElementById('fs-oud').textContent = oud;
+  document.getElementById('fs-recent').textContent = recent;
+  document.getElementById('flyer-stats').style.display = 'block';
+
+  // Nearest neighbor sort vanaf startpunt
+  flyerRoute = [];
+  const resterend = [...inStraal];
+  let huidig = {lat, lng};
+  while(resterend.length) {
+    let dichtstbij = 0, minDist = Infinity;
+    resterend.forEach((d,i) => {
+      const dist = afstand(huidig.lat, huidig.lng, d.lat, d.lng);
+      if(dist < minDist) { minDist=dist; dichtstbij=i; }
+    });
+    huidig = resterend.splice(dichtstbij,1)[0];
+    flyerRoute.push(huidig);
+  }
+
+  // Toon lijst
+  if(!flyerRoute.length) {
+    document.getElementById('flyer-lijst').innerHTML = '<div style="color:#999;text-align:center;padding:20px;">Geen VvEs gevonden in dit gebied</div>';
+    document.getElementById('export-flyer-btn').style.display='none';
+    return;
+  }
+
+  flyerZichtbaar = 5;
+
+  window.renderFlyerLijst = function renderFlyerLijst() {
+    const items = flyerRoute.slice(0, flyerZichtbaar);
+    let lijstHtml = items.map((d,i) => {
+      const flyInfo = flyerData[d.kvk];
+      const datum = flyInfo?.datum ? new Date(flyInfo.datum).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : 'Nooit';
+      const dagen = flyInfo?.datum ? Math.floor((Date.now()-new Date(flyInfo.datum).getTime())/(1000*60*60*24)) : null;
+      const kleurDot = !flyInfo?.datum ? '#dc3545' : dagen>90 ? '#f5a623' : '#1d7a6e';
+      return `<div onclick="openSidebar(alleData[${alleData.indexOf(d)}])" style="background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;border-left:4px solid ${kleurDot};">
+        <div style="font-size:12px;font-weight:700;color:#222;margin-bottom:3px;">${i+1}. ${d.straat} ${d.nr}</div>
+        <div style="font-size:11px;color:#999;">${d.naam.replace(/ TE [A-Z]+$/,"").substring(0,45)}</div>
+        <div style="font-size:11px;color:${kleurDot};margin-top:4px;">✉ ${datum}</div>
+      </div>`;
+    }).join('');
+
+    if(flyerZichtbaar < flyerRoute.length) {
+      const resterend = flyerRoute.length - flyerZichtbaar;
+      lijstHtml += `<button onclick="flyerZichtbaar=Math.min(flyerZichtbaar+10,flyerRoute.length);window.renderFlyerLijst();" style="width:100%;padding:12px;border-radius:12px;border:1.5px solid #1d7a6e;background:#fff;color:#1d7a6e;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">Toon meer (${resterend} resterend)</button>`;
+    }
+
+    document.getElementById('flyer-lijst').innerHTML = lijstHtml;
+  }
+
+  window.renderFlyerLijst();
+  
+  document.getElementById('export-flyer-btn').style.display='block';
+  applyFilters();
+}
+
+function exportFlyerRoute() {
+  const csv = [['#','VvE Naam','Straat','Nr','Postcode','Appartementen','Laatste flyer'],
+    ...flyerRoute.map((d,i) => [i+1, d.naam, d.straat, d.nr, d.postcode, d.app, flyerData[d.kvk]?.datum ? new Date(flyerData[d.kvk].datum).toLocaleDateString('nl-NL') : 'Nooit'])
+  ].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='Flyer_route.csv'; a.click();
+}
+
+
+applyFilters();
+
+// Service Worker registreren voor PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
