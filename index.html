@@ -801,7 +801,11 @@ function applyFilters(){
   document.getElementById('leg-basic').textContent=nBasic.toLocaleString('nl');
   document.getElementById('leg-klant').textContent=nKlant.toLocaleString('nl');
   document.getElementById('s-klant').textContent=nKlant.toLocaleString('nl');
-  renderLayers(gefilterd);
+  // In stap 5 (flyeren): toon alleen de route-VvEs op de kaart
+  const teRenderen = (flyerModus && flyerHuidigeStap === 5 && flyerHuidigeRoute.length > 0)
+    ? flyerHuidigeRoute
+    : gefilterd;
+  renderLayers(teRenderen);
   updateRangeFill();
 }
 
@@ -1273,12 +1277,28 @@ let flyerRoute = [];
 let flyerZichtbaar = 5;
 
 // Nieuwe flyer modus state
-let flyerType = null;        // 'basic' of 'premium'
+let flyerType = null;
 let flyerStadsdeel = null;
 let flyerGeselecteerdeBuurten = [];
 let flyerGekozeneFlyer = null;
 let flyerHuidigeRoute = [];
 let flyerSessieStart = null;
+let flyerHuidigeStap = 0;
+
+function getAdresRange(d) {
+  // Haal volledige adresreeks uit de naam, bijv. "KEIZERSGRACHT 25-90" ipv alleen nr "25"
+  let clean = d.naam
+    .replace(/ TE [A-Z][A-Z\s]*$/i, '')
+    .replace(/^VVE\s+/i, '')
+    .replace(/^"(.+)"$/, '$1')
+    .trim();
+  const straatLower = d.straat.toLowerCase();
+  if (clean.toLowerCase().startsWith(straatLower)) {
+    const rest = clean.slice(d.straat.length).trim();
+    return rest || d.nr;
+  }
+  return d.nr;
+}
 
 function getFlyerKleur(d) {
   if (!flyerModus) return null;
@@ -1303,6 +1323,7 @@ function getFlyerKleur(d) {
 }
 
 function flyerNaarStap(n) {
+  flyerHuidigeStap = n;
   [1,2,3,4,5,6].forEach(i => document.getElementById('flyer-s'+i).style.display = i===n?'block':'none');
   [1,2,3,4,5].forEach(i => document.getElementById('fstap-'+i).style.background = i<=n?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.3)');
   document.getElementById('flyer-stap-label').textContent = `Stap ${Math.min(n,5)} van 5`;
@@ -1457,8 +1478,8 @@ function flyerToonRoute() {
     return `<div onclick="flyerPuntKlik(${alleData.indexOf(d)})" style="background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;border-left:4px solid ${kleurHex};display:flex;gap:10px;align-items:flex-start;">
       <div style="font-size:18px;font-weight:800;color:${kleurHex};min-width:24px;">${i+1}</div>
       <div style="flex:1;">
-        <div style="font-size:13px;font-weight:700;color:#222;">${d.straat} ${d.nr}</div>
-        <div style="font-size:11px;color:#888;margin-top:2px;">${d.naam.replace(/ TE [A-Z]+$/,'').substring(0,40)}</div>
+        <div style="font-size:13px;font-weight:700;color:#222;">${d.straat} ${getAdresRange(d)}</div>
+        <div style="font-size:11px;color:#888;margin-top:2px;">${d.app} app. · bezoek ${volgend}</div>
         <div style="font-size:11px;color:#999;margin-top:3px;">Bezoek ${volgend} · ${gedaanFlyersTxt||'Nog niet gedaan'}</div>
       </div>
     </div>`;
@@ -1636,8 +1657,8 @@ function flyerNavToonStop(i) {
   if (!d) return;
   const n = flyerHuidigeRoute.length;
   document.getElementById('fnc-nr').textContent = `Stop ${i+1} van ${n}`;
-  document.getElementById('fnc-adres').textContent = `${d.straat} ${d.nr}`;
-  document.getElementById('fnc-naam').textContent = d.naam.replace(/ TE [A-Z]+$/,'').substring(0,50);
+  document.getElementById('fnc-adres').textContent = `${d.straat} ${getAdresRange(d)}`;
+  document.getElementById('fnc-naam').textContent = `${d.app} appartementen · bezoek ${([flyerData[String(d.kvk)]?.bezoek1,flyerData[String(d.kvk)]?.bezoek2,flyerData[String(d.kvk)]?.bezoek3].filter(Boolean).length)+1}`;
   document.getElementById('fnc-volgende-btn').style.display = i < n-1 ? '' : 'none';
   document.getElementById('flyer-nav-card').style.display = 'block';
   deckgl.setProps({initialViewState:{longitude:d.lng,latitude:d.lat,zoom:17,transitionDuration:600}});
