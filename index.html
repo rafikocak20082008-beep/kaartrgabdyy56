@@ -231,17 +231,23 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   <div class="stat"><div class="stat-label">Klanten</div><div class="stat-value" id="s-klant" style="color:#f5a623;">—</div></div>
 </div>
 
-<!-- Mobile flyer navigatiekaart -->
-<div id="flyer-nav-card" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:900;pointer-events:none;">
-  <div style="background:#fff;border-radius:20px 20px 0 0;padding:20px 20px 32px;box-shadow:0 -4px 24px rgba(0,0,0,0.18);pointer-events:all;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <div id="fnc-nr" style="font-size:13px;color:#1d7a6e;font-weight:700;"></div>
-      <button onclick="sluitFlyerNav()" style="border:none;background:rgba(0,0,0,0.07);color:#666;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1;">×</button>
-    </div>
-    <div id="fnc-adres" style="font-size:26px;font-weight:800;color:#222;line-height:1.2;margin-bottom:4px;"></div>
-    <div id="fnc-naam" style="font-size:13px;color:#888;margin-bottom:18px;"></div>
+<!-- Mobile flyer klaar-knop -->
+<div id="flyer-nav-card" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:900;padding:16px;pointer-events:none;">
+  <div style="background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 -2px 20px rgba(0,0,0,0.15);pointer-events:all;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+    <div id="fnc-nr" style="font-size:13px;color:#666;font-weight:600;"></div>
+    <button onclick="flyerNavKlaarVragen()" style="padding:14px 28px;border-radius:12px;border:none;background:#1d7a6e;color:#fff;font-size:16px;font-weight:700;cursor:pointer;">✓ Klaar</button>
+  </div>
+</div>
+
+<!-- Bevestiging dialoog -->
+<div id="flyer-bevestig" style="display:none;position:fixed;inset:0;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,0.5);z-index:9999;display:none;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:20px;padding:28px 24px;width:88vw;max-width:340px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
+    <div style="font-size:32px;margin-bottom:12px;">📬</div>
+    <div style="font-size:18px;font-weight:700;color:#222;margin-bottom:8px;">Klaar met flyeren?</div>
+    <div style="font-size:14px;color:#888;margin-bottom:24px;">Weet je zeker dat je alle adressen hebt gedaan?</div>
     <div style="display:flex;gap:10px;">
-      <button onclick="flyerNavVolgende()" id="fnc-volgende-btn" style="flex:1;padding:15px;border-radius:14px;border:none;background:#1d7a6e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Volgende →</button>
+      <button onclick="document.getElementById('flyer-bevestig').style.display='none'" style="flex:1;padding:14px;border-radius:12px;border:2px solid #e0e0e0;background:#fff;color:#333;font-size:15px;font-weight:600;cursor:pointer;">Nee</button>
+      <button onclick="flyerNavBevestigd()" style="flex:1;padding:14px;border-radius:12px;border:none;background:#1d7a6e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Ja, klaar!</button>
     </div>
   </div>
 </div>
@@ -1456,7 +1462,7 @@ function flyerSorteerRoute(vves, start) {
   flyerNaarStap(5);
   if (window.innerWidth <= 600) {
     document.getElementById('flyer-panel').style.display = 'none';
-    flyerNavToonStop(0);
+    flyerNavToonStop();
   }
 }
 
@@ -1651,37 +1657,22 @@ function stopGPS() {
 }
 
 function flyerNavToonStop(i) {
-  flyerNavIndex = i;
-  const d = flyerHuidigeRoute[i];
-  if (!d) return;
   const n = flyerHuidigeRoute.length;
-  document.getElementById('fnc-nr').textContent = `Stop ${i+1} van ${n}`;
-  document.getElementById('fnc-adres').textContent = `${d.straat} ${getAdresRange(d)}`;
-  document.getElementById('fnc-naam').textContent = `${d.app} appartementen · bezoek ${([flyerData[String(d.kvk)]?.bezoek1,flyerData[String(d.kvk)]?.bezoek2,flyerData[String(d.kvk)]?.bezoek3].filter(Boolean).length)+1}`;
-  const btn = document.getElementById('fnc-volgende-btn');
-  if (i < n-1) { btn.textContent = 'Volgende →'; btn.style.background = '#1d7a6e'; btn.style.color = '#fff'; }
-  else { btn.textContent = '✓ Klaar'; btn.style.background = '#1d7a6e'; btn.style.color = '#fff'; }
+  document.getElementById('fnc-nr').textContent = `${n} adressen in je route`;
   document.getElementById('flyer-nav-card').style.display = 'block';
-  deckgl.setProps({initialViewState:{longitude:d.lng,latitude:d.lat,zoom:17,transitionDuration:600}});
 }
 
-function flyerNavVolgende() {
-  if (flyerNavIndex < flyerHuidigeRoute.length - 1) {
-    flyerNavToonStop(flyerNavIndex + 1);
-  } else {
-    // Laatste stop — sessie afronden
-    document.getElementById('flyer-nav-card').style.display = 'none';
-    document.getElementById('flyer-panel').style.display = 'block';
-    flyerSessieKlaar();
-  }
+function flyerNavKlaarVragen() {
+  document.getElementById('flyer-bevestig').style.display = 'flex';
 }
 
-function sluitFlyerNav() {
+function flyerNavBevestigd() {
+  document.getElementById('flyer-bevestig').style.display = 'none';
   document.getElementById('flyer-nav-card').style.display = 'none';
-  if (window.innerWidth <= 600) {
-    document.getElementById('flyer-panel').style.display = 'block';
-  }
+  document.getElementById('flyer-panel').style.display = 'block';
+  flyerSessieKlaar();
 }
+
 
 function _openFlyerModus() {
   flyerModus = true;
