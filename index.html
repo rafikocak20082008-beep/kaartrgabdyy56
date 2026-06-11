@@ -231,6 +231,22 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   <div class="stat"><div class="stat-label">Klanten</div><div class="stat-value" id="s-klant" style="color:#f5a623;">—</div></div>
 </div>
 
+<!-- Mobile flyer navigatiekaart -->
+<div id="flyer-nav-card" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:900;pointer-events:none;">
+  <div style="background:#fff;border-radius:20px 20px 0 0;padding:20px 20px 32px;box-shadow:0 -4px 24px rgba(0,0,0,0.18);pointer-events:all;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div id="fnc-nr" style="font-size:13px;color:#1d7a6e;font-weight:700;"></div>
+      <button onclick="sluitFlyerNav()" style="border:none;background:rgba(0,0,0,0.07);color:#666;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1;">×</button>
+    </div>
+    <div id="fnc-adres" style="font-size:26px;font-weight:800;color:#222;line-height:1.2;margin-bottom:4px;"></div>
+    <div id="fnc-naam" style="font-size:13px;color:#888;margin-bottom:18px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="flyerNavMarkeer()" style="flex:1;padding:15px;border-radius:14px;border:none;background:#1d7a6e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">✓ Geflyerd</button>
+      <button onclick="flyerNavVolgende()" id="fnc-volgende-btn" style="flex:1;padding:15px;border-radius:14px;border:none;background:#f0f2f5;color:#333;font-size:15px;font-weight:700;cursor:pointer;">Volgende →</button>
+    </div>
+  </div>
+</div>
+
 <!-- Favorieten popup -->
 <div id="keuze-menu" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:12px;padding:20px;z-index:2000;max-height:60vh;overflow-y:auto;min-width:300px;box-shadow:0 8px 30px rgba(0,0,0,0.2);"></div>
 <div id="fav-popup" style="display:none;position:absolute;top:80px;right:20px;width:340px;max-height:500px;background:#fff;border-radius:20px;box-shadow:0 12px 40px rgba(0,0,0,0.15);z-index:1001;overflow:hidden;flex-direction:column;">
@@ -731,7 +747,20 @@ function renderLayers(data){
     onHover: hoverHandler,
   });
 
-  deckgl.setProps({layers:[clusterLayer, tekstLayer, puntLayer, klantLayer]});
+  const layers = [clusterLayer, tekstLayer, puntLayer, klantLayer];
+  if (gpsLat !== null) {
+    layers.push(new ScatterplotLayer({
+      id:'gps-ring', data:[{lat:gpsLat,lng:gpsLng}],
+      getPosition:d=>[d.lng,d.lat], getFillColor:[29,122,110,50],
+      getRadius:30, radiusUnits:'pixels', stroked:false,
+    }));
+    layers.push(new ScatterplotLayer({
+      id:'gps-dot', data:[{lat:gpsLat,lng:gpsLng}],
+      getPosition:d=>[d.lng,d.lat], getFillColor:[29,122,110,255],
+      getRadius:10, radiusUnits:'pixels', stroked:true, lineWidthMinPixels:3, getLineColor:[255,255,255,255],
+    }));
+  }
+  deckgl.setProps({layers});
 }
 
 function setKlantFilter(val){
@@ -1405,6 +1434,10 @@ function flyerSorteerRoute(vves, start) {
   flyerSessieStart = Date.now();
   flyerToonRoute();
   flyerNaarStap(5);
+  if (window.innerWidth <= 600) {
+    document.getElementById('flyer-panel').style.display = 'none';
+    flyerNavToonStop(0);
+  }
 }
 
 function flyerToonRoute() {
@@ -1580,18 +1613,65 @@ function pinControleer() {
 
 // ─────────────────────────────────────────────────────
 
+let gpsLat = null, gpsLng = null, gpsWatchId = null;
+let flyerNavIndex = 0;
+
+function startGPS() {
+  if (!navigator.geolocation || gpsWatchId) return;
+  gpsWatchId = navigator.geolocation.watchPosition(pos => {
+    gpsLat = pos.coords.latitude;
+    gpsLng = pos.coords.longitude;
+    applyFilters();
+  }, null, {enableHighAccuracy: true});
+}
+
+function stopGPS() {
+  if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+  gpsLat = null; gpsLng = null;
+}
+
+function flyerNavToonStop(i) {
+  flyerNavIndex = i;
+  const d = flyerHuidigeRoute[i];
+  if (!d) return;
+  const n = flyerHuidigeRoute.length;
+  document.getElementById('fnc-nr').textContent = `Stop ${i+1} van ${n}`;
+  document.getElementById('fnc-adres').textContent = `${d.straat} ${d.nr}`;
+  document.getElementById('fnc-naam').textContent = d.naam.replace(/ TE [A-Z]+$/,'').substring(0,50);
+  document.getElementById('fnc-volgende-btn').style.display = i < n-1 ? '' : 'none';
+  document.getElementById('flyer-nav-card').style.display = 'block';
+  deckgl.setProps({initialViewState:{longitude:d.lng,latitude:d.lat,zoom:17,transitionDuration:600}});
+}
+
+function flyerNavVolgende() {
+  if (flyerNavIndex < flyerHuidigeRoute.length - 1) flyerNavToonStop(flyerNavIndex + 1);
+}
+
+function flyerNavMarkeer() {
+  flyerNavVolgende();
+}
+
+function sluitFlyerNav() {
+  document.getElementById('flyer-nav-card').style.display = 'none';
+  if (window.innerWidth <= 600) {
+    document.getElementById('flyer-panel').style.display = 'block';
+  }
+}
+
 function _openFlyerModus() {
   flyerModus = true;
   const btn = document.getElementById('flyer-btn');
   btn.style.background = '#1d7a6e';
   btn.style.color = '#fff';
   document.getElementById('flyer-panel').style.display = 'block';
+  document.getElementById('header-logo').style.display = 'none';
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('fav-top-btn').style.display = 'none';
   document.getElementById('export-top-btn').style.display = 'none';
   document.getElementById('stats').style.display = 'none';
   document.getElementById('legenda').style.display = 'none';
   document.getElementById('search-bar').style.display = 'none';
+  startGPS();
   flyerNaarStap(1);
   applyFilters();
 }
@@ -1600,17 +1680,19 @@ function toggleFlyerModus() {
   if (!flyerModus) {
     toonPinModal();
   } else {
-    // sluiten
     flyerModus = false;
     document.getElementById('flyer-btn').style.background = 'rgba(255,255,255,0.95)';
     document.getElementById('flyer-btn').style.color = '#333';
     document.getElementById('flyer-panel').style.display = 'none';
+    document.getElementById('flyer-nav-card').style.display = 'none';
+    document.getElementById('header-logo').style.display = '';
     flyerStartpunt = null;
     document.getElementById('fav-top-btn').style.display = '';
     document.getElementById('export-top-btn').style.display = '';
     document.getElementById('stats').style.display = '';
     document.getElementById('legenda').style.display = '';
     document.getElementById('search-bar').style.display = '';
+    stopGPS();
     applyFilters();
   }
 }
@@ -1620,7 +1702,10 @@ function sluitFlyerPanel() {
   document.getElementById('flyer-btn').style.background = 'rgba(255,255,255,0.95)';
   document.getElementById('flyer-btn').style.color = '#333';
   document.getElementById('flyer-panel').style.display = 'none';
+  document.getElementById('flyer-nav-card').style.display = 'none';
+  document.getElementById('header-logo').style.display = '';
   flyerStartpunt = null;
+  stopGPS();
   applyFilters();
 }
 
