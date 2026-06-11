@@ -869,7 +869,7 @@ async function highlightGebouwen(d) {
       new Promise(res => setTimeout(async () => res(await geocodeerPunt(d.straat, nrs[nrs.length-1], d.gemeente)), 1100))
     ]);
     if (c1 && c2) {
-      const pad = 0.0003;
+      const pad = 0.0008;
       minLat = Math.min(c1[1], c2[1]) - pad;
       maxLat = Math.max(c1[1], c2[1]) + pad;
       minLng = Math.min(c1[0], c2[0]) - pad;
