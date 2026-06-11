@@ -846,25 +846,42 @@ function parseAdresReeks(d) {
 async function highlightGebouwen(d) {
   vveGebouwFeatures = null;
   applyFilters();
-  const nrs = parseAdresReeks(d);
-  const bbox = `${d.lat-0.005},${d.lng-0.012},${d.lat+0.005},${d.lng+0.012}`;
-  const nrRegex = nrs.join('|');
-  const query = `[out:json][timeout:15];(way["addr:housenumber"~"^(${nrRegex})$"](${bbox}););out geom;`;
-  try {
-    const resp = await fetch('https://overpass-api.de/api/interpreter', {
-      method:'POST', body:'data='+encodeURIComponent(query)
-    });
-    const json = await resp.json();
-    const features = (json.elements||[]).filter(e=>e.type==='way'&&e.geometry).map(way=>({
-      type:'Feature',
-      properties:{nr: way.tags?.['addr:housenumber']||''},
-      geometry:{type:'Polygon', coordinates:[[...way.geometry.map(p=>[p.lon,p.lat])]]}
-    }));
+
+  const map = deckgl.getMapboxMap();
+  if (!map) return;
+
+  // Zoom naar locatie zodat gebouwen zichtbaar zijn
+  deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
+
+  const doHighlight = () => {
+    const center = map.project([d.lng, d.lat]);
+    const marge = 250;
+    const gevonden = map.queryRenderedFeatures(
+      [[center.x - marge, center.y - marge], [center.x + marge, center.y + marge]]
+    ).filter(f =>
+      f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon') &&
+      (f.layer.id.includes('building') || f.layer['source-layer']?.includes('building') ||
+       f.layer.id.includes('landuse') === false)
+    );
+
+    // Pak unieke polygon-features op basis van coördinaten
+    const gezien = new Set();
+    const features = gevonden
+      .filter(f => { const k = JSON.stringify(f.geometry.coordinates[0]?.[0]); if(gezien.has(k)) return false; gezien.add(k); return true; })
+      .map(f => ({type:'Feature', properties:{}, geometry: f.geometry}));
+
     if (features.length > 0) {
       vveGebouwFeatures = {type:'FeatureCollection', features, premium: d.totaal >= 50};
       applyFilters();
     }
-  } catch(e) {}
+  };
+
+  // Wacht op kaart klaar, dan query
+  if (map.isMoving() || map.isZooming()) {
+    map.once('idle', doHighlight);
+  } else {
+    setTimeout(doHighlight, 600);
+  }
 }
 
 function clearGebouwHighlight() {
