@@ -118,13 +118,21 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 
 @media (max-width: 600px) {
   #flyer-panel { width: 100% !important; left: 0 !important; right: 0 !important; top: 0 !important; height: 100% !important; border-left: none !important; }
-  #search-bar { width: calc(100% - 24px) !important; bottom: 16px !important; }
-  #stats { right: 8px !important; bottom: 16px !important; gap: 8px !important; padding: 8px 12px !important; flex-wrap: wrap; max-width: calc(100vw - 16px); }
-  .stat-value { font-size: 15px !important; }
-  .stat-label { font-size: 11px !important; }
-  #legenda { left: 8px !important; bottom: 16px !important; font-size: 12px; }
-  #top-btns { top: 12px !important; right: 12px !important; }
-  #header-logo { height: 140px !important; }
+  /* Stats bovenaan, compact horizontaal */
+  #stats { position: absolute !important; top: 12px !important; left: 12px !important; right: 60px !important; bottom: auto !important; gap: 0 !important; padding: 6px 10px !important; flex-wrap: nowrap; justify-content: space-between; border-radius: 12px !important; }
+  .stat { text-align: center; flex: 1; }
+  .stat-value { font-size: 13px !important; }
+  .stat-label { font-size: 9px !important; }
+  /* Legenda linksonder, compact */
+  #legenda { left: 8px !important; bottom: 100px !important; padding: 8px 12px !important; font-size: 11px; }
+  #legenda > div:first-child { margin-bottom: 6px !important; }
+  /* Zoekbalk boven legenda */
+  #search-bar { width: calc(100% - 24px) !important; bottom: 16px !important; left: 12px !important; transform: none !important; }
+  #filter-btn { padding: 14px 16px !important; font-size: 14px !important; }
+  /* Top knoppen rechts naast stats */
+  #top-btns { top: 8px !important; right: 8px !important; gap: 6px !important; }
+  .top-btn { width: 36px !important; height: 36px !important; font-size: 14px !important; }
+  #header-logo { height: 100px !important; }
   #sidebar { width: 100% !important; }
   #filter-panel { width: 100% !important; }
   #pin-overlay > div { width: 90vw !important; }
