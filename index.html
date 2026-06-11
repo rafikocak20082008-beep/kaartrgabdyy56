@@ -1510,7 +1510,6 @@ function kaartPinControleer() {
     overlay.style.transition = 'opacity 0.4s';
     overlay.style.opacity = '0';
     setTimeout(() => overlay.style.display = 'none', 400);
-    sessionStorage.setItem('vve_toegang', '1');
   } else {
     document.getElementById('kaart-pin-msg').textContent = 'Onjuiste pincode';
     document.getElementById('kaart-pin-msg').style.color = '#ffcccc';
@@ -1524,10 +1523,6 @@ function kaartPinControleer() {
   }
 }
 
-// Check of al ingelogd in deze sessie
-if (sessionStorage.getItem('vve_toegang') === '1') {
-  document.getElementById('kaart-pin-overlay').style.display = 'none';
-}
 
 // ── Pincode (flyer modus) ─────────────────────────────
 let _pinBuffer = '';
