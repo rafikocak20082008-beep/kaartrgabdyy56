@@ -856,53 +856,47 @@ async function geocodeerPunt(straat, nr, gemeente) {
 async function highlightGebouwen(d) {
   vveGebouwFeatures = null;
   applyFilters();
-
-  const map = deckgl.getMapboxMap();
-  if (!map) return;
-
   deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
 
   const nrs = parseAdresReeks(d);
-  let p1 = [d.lng, d.lat], p2 = [d.lng, d.lat];
+  let minLat = d.lat - 0.0008, maxLat = d.lat + 0.0008;
+  let minLng = d.lng - 0.0015, maxLng = d.lng + 0.0015;
 
+  // Geocodeer eerste + laatste om exacte bbox te bepalen
   if (nrs.length >= 2) {
     const [c1, c2] = await Promise.all([
       geocodeerPunt(d.straat, nrs[0], d.gemeente),
       new Promise(res => setTimeout(async () => res(await geocodeerPunt(d.straat, nrs[nrs.length-1], d.gemeente)), 1100))
     ]);
-    if (c1) p1 = c1;
-    if (c2) p2 = c2;
+    if (c1 && c2) {
+      const pad = 0.0003;
+      minLat = Math.min(c1[1], c2[1]) - pad;
+      maxLat = Math.max(c1[1], c2[1]) + pad;
+      minLng = Math.min(c1[0], c2[0]) - pad;
+      maxLng = Math.max(c1[0], c2[0]) + pad;
+    }
   }
 
-  const doHighlight = () => {
-    const px1 = map.project(p1);
-    const px2 = map.project(p2);
-    const minX = Math.min(px1.x, px2.x) - 20;
-    const minY = Math.min(px1.y, px2.y) - 20;
-    const maxX = Math.max(px1.x, px2.x) + 20;
-    const maxY = Math.max(px1.y, px2.y) + 20;
-
-    const gevonden = map.queryRenderedFeatures([[minX, minY],[maxX, maxY]])
-      .filter(f => f.layer.id.toLowerCase().includes('build') ||
-                   f.layer['source-layer']?.toLowerCase().includes('build'));
-
-    const gezien = new Set();
-    const features = gevonden
-      .filter(f => f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon')
-      .filter(f => { const k = JSON.stringify(f.geometry.coordinates[0]?.[0]); if(gezien.has(k)) return false; gezien.add(k); return true; })
-      .map(f => ({type:'Feature', properties:{}, geometry: f.geometry}));
-
+  // Overpass: alle gebouwen in de bbox
+  const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
+  const query = `[out:json][timeout:15];way["building"](${bbox});out geom;`;
+  try {
+    const resp = await fetch('https://overpass-api.de/api/interpreter', {
+      method:'POST', body:'data='+encodeURIComponent(query)
+    });
+    const json = await resp.json();
+    const features = (json.elements||[])
+      .filter(e => e.type==='way' && e.geometry && e.geometry.length >= 3)
+      .map(way => {
+        const coords = way.geometry.map(p => [p.lon, p.lat]);
+        if (coords[0][0] !== coords[coords.length-1][0] || coords[0][1] !== coords[coords.length-1][1]) coords.push(coords[0]);
+        return {type:'Feature', properties:{}, geometry:{type:'Polygon', coordinates:[coords]}};
+      });
     if (features.length > 0) {
       vveGebouwFeatures = {type:'FeatureCollection', features, premium: d.totaal >= 50};
       applyFilters();
     }
-  };
-
-  // Wacht tot kaart en geocoding klaar zijn
-  setTimeout(() => {
-    if (map.isMoving() || map.isZooming()) map.once('idle', doHighlight);
-    else doHighlight();
-  }, 1300);
+  } catch(e) {}
 }
 
 function clearGebouwHighlight() {
