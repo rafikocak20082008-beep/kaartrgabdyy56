@@ -843,6 +843,16 @@ function parseAdresReeks(d) {
   return nrs;
 }
 
+async function geocodeerPunt(straat, nr, gemeente) {
+  try {
+    const q = encodeURIComponent(`${nr} ${straat}, ${gemeente}`);
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=nl`);
+    const j = await r.json();
+    if (j[0]) return [parseFloat(j[0].lon), parseFloat(j[0].lat)];
+  } catch(e) {}
+  return null;
+}
+
 async function highlightGebouwen(d) {
   vveGebouwFeatures = null;
   applyFilters();
@@ -850,23 +860,35 @@ async function highlightGebouwen(d) {
   const map = deckgl.getMapboxMap();
   if (!map) return;
 
-  // Zoom naar locatie zodat gebouwen zichtbaar zijn
   deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
 
-  const doHighlight = () => {
-    const center = map.project([d.lng, d.lat]);
-    const marge = 250;
-    const gevonden = map.queryRenderedFeatures(
-      [[center.x - marge, center.y - marge], [center.x + marge, center.y + marge]]
-    ).filter(f =>
-      f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon') &&
-      (f.layer.id.includes('building') || f.layer['source-layer']?.includes('building') ||
-       f.layer.id.includes('landuse') === false)
-    );
+  const nrs = parseAdresReeks(d);
+  let p1 = [d.lng, d.lat], p2 = [d.lng, d.lat];
 
-    // Pak unieke polygon-features op basis van coördinaten
+  if (nrs.length >= 2) {
+    const [c1, c2] = await Promise.all([
+      geocodeerPunt(d.straat, nrs[0], d.gemeente),
+      new Promise(res => setTimeout(async () => res(await geocodeerPunt(d.straat, nrs[nrs.length-1], d.gemeente)), 1100))
+    ]);
+    if (c1) p1 = c1;
+    if (c2) p2 = c2;
+  }
+
+  const doHighlight = () => {
+    const px1 = map.project(p1);
+    const px2 = map.project(p2);
+    const minX = Math.min(px1.x, px2.x) - 20;
+    const minY = Math.min(px1.y, px2.y) - 20;
+    const maxX = Math.max(px1.x, px2.x) + 20;
+    const maxY = Math.max(px1.y, px2.y) + 20;
+
+    const gevonden = map.queryRenderedFeatures([[minX, minY],[maxX, maxY]])
+      .filter(f => f.layer.id.toLowerCase().includes('build') ||
+                   f.layer['source-layer']?.toLowerCase().includes('build'));
+
     const gezien = new Set();
     const features = gevonden
+      .filter(f => f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon')
       .filter(f => { const k = JSON.stringify(f.geometry.coordinates[0]?.[0]); if(gezien.has(k)) return false; gezien.add(k); return true; })
       .map(f => ({type:'Feature', properties:{}, geometry: f.geometry}));
 
@@ -876,12 +898,11 @@ async function highlightGebouwen(d) {
     }
   };
 
-  // Wacht op kaart klaar, dan query
-  if (map.isMoving() || map.isZooming()) {
-    map.once('idle', doHighlight);
-  } else {
-    setTimeout(doHighlight, 600);
-  }
+  // Wacht tot kaart en geocoding klaar zijn
+  setTimeout(() => {
+    if (map.isMoving() || map.isZooming()) map.once('idle', doHighlight);
+    else doHighlight();
+  }, 1300);
 }
 
 function clearGebouwHighlight() {
