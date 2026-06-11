@@ -358,7 +358,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 
 <div id="sidebar">
   <div id="sidebar-img">
-    <button id="sidebar-close" onclick="document.getElementById('sidebar').classList.remove('open');document.getElementById('stats').style.display='';vveHighlightDots=[];applyFilters();">‹</button>
+    <button id="sidebar-close" onclick="document.getElementById('sidebar').classList.remove('open');document.getElementById('stats').style.display='';geselecteerdeVvE=null;applyFilters();">‹</button>
     <svg width="60" height="60" viewBox="0 0 100 100" fill="none" opacity="0.6">
       <rect x="18" y="32" width="26" height="52" rx="3" fill="#f5a623"/>
       <rect x="54" y="16" width="26" height="68" rx="3" fill="#f5a623"/>
@@ -753,17 +753,18 @@ function renderLayers(data){
   });
 
   const layers = [clusterLayer, tekstLayer, puntLayer, klantLayer];
-  if (vveHighlightDots.length > 0) {
+  if (geselecteerdeVvE) {
+    const kleur = geselecteerdeVvE.totaal >= 50 ? [29,122,110] : [123,198,126];
     layers.push(new ScatterplotLayer({
-      id:'vve-highlight-ring', data: vveHighlightDots,
-      getPosition: d=>[d.lng,d.lat], getFillColor:[245,166,35,60],
-      getRadius:18, radiusUnits:'pixels', stroked:false,
+      id:'vve-selected-ring', data:[geselecteerdeVvE],
+      getPosition: d=>[d.lng,d.lat], getFillColor:[...kleur,50],
+      getRadius:28, radiusUnits:'pixels', stroked:false,
     }));
     layers.push(new ScatterplotLayer({
-      id:'vve-highlight', data: vveHighlightDots,
-      getPosition: d=>[d.lng,d.lat], getFillColor:[245,166,35,255],
-      getRadius:10, radiusUnits:'pixels', stroked:true,
-      lineWidthMinPixels:2, getLineColor:[255,255,255,255],
+      id:'vve-selected', data:[geselecteerdeVvE],
+      getPosition: d=>[d.lng,d.lat], getFillColor:[...kleur,255],
+      getRadius:16, radiusUnits:'pixels', stroked:true,
+      lineWidthMinPixels:4, getLineColor:[255,255,255,255],
     }));
   }
   if (gpsLat !== null) {
@@ -827,54 +828,7 @@ function applyFilters(){
   updateRangeFill();
 }
 
-let vveHighlightDots = [];
-
-function parseAdresReeks(d) {
-  const naam = d.naam.replace(/ TE [A-Z\s]+$/i,'');
-  const oneven = /ONEVEN/i.test(naam);
-  const ranges = [];
-  // Match "X TOT EN MET Y" of "X T/M Y" of "X-Y"
-  const pat = /(\d+)\s*(?:TOT\s+EN\s+MET|T\/M|-)\s*(\d+)/gi;
-  let m;
-  while ((m = pat.exec(naam)) !== null) {
-    const a = parseInt(m[1]), b = parseInt(m[2]);
-    if (b > a && b - a < 500) ranges.push([a, b]);
-  }
-  if (!ranges.length) return null;
-  const step = oneven ? 2 : (ranges[0][0] % 2 === ranges[0][1] % 2 && ranges[0][1] - ranges[0][0] > 2) ? 2 : 1;
-  const nrs = [];
-  for (const [a, b] of ranges) for (let n = a; n <= b; n += step) nrs.push(n);
-  return nrs;
-}
-
-async function geocodeerNr(straat, nr, gemeente) {
-  try {
-    const q = encodeURIComponent(`${nr} ${straat}, ${gemeente}, Netherlands`);
-    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`, {headers:{'Accept-Language':'nl'}});
-    const j = await r.json();
-    if (j[0]) return {lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon)};
-  } catch(e) {}
-  return null;
-}
-
-async function highlightVveAdressen(d) {
-  vveHighlightDots = [{lat: d.lat, lng: d.lng, nr: d.nr}];
-  applyFilters();
-  const nrs = parseAdresReeks(d);
-  if (!nrs || nrs.length < 2) return;
-  const [p1, p2] = await Promise.all([
-    geocodeerNr(d.straat, nrs[0], d.gemeente),
-    new Promise(res => setTimeout(async () => res(await geocodeerNr(d.straat, nrs[nrs.length-1], d.gemeente)), 1100))
-  ]);
-  if (!p1 || !p2) return;
-  const n = nrs.length;
-  vveHighlightDots = nrs.map((nr, i) => ({
-    lat: p1.lat + (p2.lat - p1.lat) * (i / Math.max(n-1,1)),
-    lng: p1.lng + (p2.lng - p1.lng) * (i / Math.max(n-1,1)),
-    nr
-  }));
-  applyFilters();
-}
+let geselecteerdeVvE = null;
 
 function openSidebar(d){
   currentVvE=d;
@@ -891,7 +845,8 @@ function openSidebar(d){
   d.tel = d.tel || '';
   d.website = d.website || '';
   d.email = d.email || '';
-  highlightVveAdressen(d);
+  geselecteerdeVvE = d;
+  applyFilters();
   document.getElementById('sidebar').classList.add('open');
   document.getElementById('stats').style.display='none';
   document.getElementById('fav-popup').style.display = 'none';
