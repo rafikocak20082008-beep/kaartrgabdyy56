@@ -241,8 +241,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
     <div id="fnc-adres" style="font-size:26px;font-weight:800;color:#222;line-height:1.2;margin-bottom:4px;"></div>
     <div id="fnc-naam" style="font-size:13px;color:#888;margin-bottom:18px;"></div>
     <div style="display:flex;gap:10px;">
-      <button onclick="flyerNavMarkeer()" style="flex:1;padding:15px;border-radius:14px;border:none;background:#1d7a6e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">✓ Geflyerd</button>
-      <button onclick="flyerNavVolgende()" id="fnc-volgende-btn" style="flex:1;padding:15px;border-radius:14px;border:none;background:#f0f2f5;color:#333;font-size:15px;font-weight:700;cursor:pointer;">Volgende →</button>
+      <button onclick="flyerNavVolgende()" id="fnc-volgende-btn" style="flex:1;padding:15px;border-radius:14px;border:none;background:#1d7a6e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Volgende →</button>
     </div>
   </div>
 </div>
@@ -1659,17 +1658,22 @@ function flyerNavToonStop(i) {
   document.getElementById('fnc-nr').textContent = `Stop ${i+1} van ${n}`;
   document.getElementById('fnc-adres').textContent = `${d.straat} ${getAdresRange(d)}`;
   document.getElementById('fnc-naam').textContent = `${d.app} appartementen · bezoek ${([flyerData[String(d.kvk)]?.bezoek1,flyerData[String(d.kvk)]?.bezoek2,flyerData[String(d.kvk)]?.bezoek3].filter(Boolean).length)+1}`;
-  document.getElementById('fnc-volgende-btn').style.display = i < n-1 ? '' : 'none';
+  const btn = document.getElementById('fnc-volgende-btn');
+  if (i < n-1) { btn.textContent = 'Volgende →'; btn.style.background = '#1d7a6e'; btn.style.color = '#fff'; }
+  else { btn.textContent = '✓ Klaar'; btn.style.background = '#1d7a6e'; btn.style.color = '#fff'; }
   document.getElementById('flyer-nav-card').style.display = 'block';
   deckgl.setProps({initialViewState:{longitude:d.lng,latitude:d.lat,zoom:17,transitionDuration:600}});
 }
 
 function flyerNavVolgende() {
-  if (flyerNavIndex < flyerHuidigeRoute.length - 1) flyerNavToonStop(flyerNavIndex + 1);
-}
-
-function flyerNavMarkeer() {
-  flyerNavVolgende();
+  if (flyerNavIndex < flyerHuidigeRoute.length - 1) {
+    flyerNavToonStop(flyerNavIndex + 1);
+  } else {
+    // Laatste stop — sessie afronden
+    document.getElementById('flyer-nav-card').style.display = 'none';
+    document.getElementById('flyer-panel').style.display = 'block';
+    flyerSessieKlaar();
+  }
 }
 
 function sluitFlyerNav() {
