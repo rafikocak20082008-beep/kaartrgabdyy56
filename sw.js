@@ -1,7 +1,5 @@
-const CACHE = 'vvegemak-v1';
+const CACHE = 'vvegemak-v2';
 const CORE = [
-  '/',
-  '/index.html',
   '/vve_data.js',
   '/flyer_data.js',
 ];
@@ -22,8 +20,20 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = e.request.url;
-  // Externe tile/deck.gl requests: network first, geen cache
   if (url.includes('unpkg.com') || url.includes('cartocdn') || url.includes('nominatim') || url.includes('openstreetmap')) {
+    return;
+  }
+  // index.html altijd network-first zodat updates direct zichtbaar zijn
+  if (url.endsWith('/') || url.includes('index.html')) {
+    e.respondWith(
+      fetch(e.request).then(resp => {
+        if (resp.ok) {
+          const clone = resp.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return resp;
+      }).catch(() => caches.match(e.request))
+    );
     return;
   }
   e.respondWith(
