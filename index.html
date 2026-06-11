@@ -113,11 +113,58 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 #status-sectie { margin: 0 16px 10px; padding: 14px 16px; background: #fff; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
 .pin-key { padding: 16px 8px; border-radius: 14px; border: none; background: #f0f2f5; font-size: 20px; font-weight: 700; cursor: pointer; transition: background 0.1s; }
 .pin-key:active { background: #1d7a6e; color: #fff; }
+.kpin-key { padding: 16px 8px; border-radius: 14px; border: none; background: rgba(255,255,255,0.2); color: #fff; font-size: 20px; font-weight: 700; cursor: pointer; transition: background 0.1s; }
+.kpin-key:active { background: rgba(255,255,255,0.5); }
+
+@media (max-width: 600px) {
+  #flyer-panel { width: 100% !important; left: 0 !important; right: 0 !important; top: 0 !important; height: 100% !important; border-left: none !important; }
+  #search-bar { width: calc(100% - 24px) !important; bottom: 16px !important; }
+  #stats { right: 8px !important; bottom: 16px !important; gap: 8px !important; padding: 8px 12px !important; flex-wrap: wrap; max-width: calc(100vw - 16px); }
+  .stat-value { font-size: 15px !important; }
+  .stat-label { font-size: 11px !important; }
+  #legenda { left: 8px !important; bottom: 16px !important; font-size: 12px; }
+  #top-btns { top: 12px !important; right: 12px !important; }
+  #header-logo { height: 140px !important; }
+  #sidebar { width: 100% !important; }
+  #filter-panel { width: 100% !important; }
+  #pin-overlay > div { width: 90vw !important; }
+}
 </style>
 <script src="vve_data.js"></script>
 <script src="flyer_data.js"></script>
 </head>
 <body>
+<!-- Kaart toegang pincode -->
+<div id="kaart-pin-overlay" style="position:fixed;inset:0;background:#1d7a6e;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+  <div style="margin-bottom:32px;text-align:center;">
+    <svg width="64" height="64" viewBox="0 0 100 100" fill="none"><rect x="18" y="32" width="26" height="52" rx="3" fill="#fff" opacity="0.9"/><rect x="54" y="16" width="26" height="68" rx="3" fill="#fff"/><rect x="8" y="62" width="84" height="5" rx="2" fill="rgba(255,255,255,0.6)"/></svg>
+    <div style="font-size:22px;font-weight:700;color:#fff;margin-top:12px;">VVEgemak Kaart</div>
+    <div id="kaart-pin-msg" style="font-size:14px;color:rgba(255,255,255,0.75);margin-top:4px;">Voer de pincode in</div>
+  </div>
+  <div style="background:rgba(255,255,255,0.15);border-radius:24px;padding:28px 24px;width:300px;text-align:center;">
+    <div style="display:flex;justify-content:center;gap:12px;margin-bottom:20px;" id="kaart-pin-dots">
+      <div class="kpin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,0.6);background:transparent;transition:background 0.15s;"></div>
+      <div class="kpin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,0.6);background:transparent;transition:background 0.15s;"></div>
+      <div class="kpin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,0.6);background:transparent;transition:background 0.15s;"></div>
+      <div class="kpin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,0.6);background:transparent;transition:background 0.15s;"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+      <button class="kpin-key" onclick="kaartPinInvoer('1')">1</button>
+      <button class="kpin-key" onclick="kaartPinInvoer('2')">2</button>
+      <button class="kpin-key" onclick="kaartPinInvoer('3')">3</button>
+      <button class="kpin-key" onclick="kaartPinInvoer('4')">4</button>
+      <button class="kpin-key" onclick="kaartPinInvoer('5')">5</button>
+      <button class="kpin-key" onclick="kaartPinInvoer('6')">6</button>
+      <button class="kpin-key" onclick="kaartPinInvoer('7')">7</button>
+      <button class="kpin-key" onclick="kaartPinInvoer('8')">8</button>
+      <button class="kpin-key" onclick="kaartPinInvoer('9')">9</button>
+      <div></div>
+      <button class="kpin-key" onclick="kaartPinInvoer('0')">0</button>
+      <button class="kpin-key" onclick="kaartPinWis()" style="font-size:18px;">⌫</button>
+    </div>
+  </div>
+</div>
+
 <div id="container"></div>
 <div id="tooltip"><div id="tooltip-name"></div><div id="tooltip-addr"></div></div>
 
@@ -1275,9 +1322,10 @@ function flyerKiesStadsdeel(sd) {
   const kleurLabel = {oranje:'🟠 nieuw',groen:'🟢 b2',blauw:'🔵 b3',rood:'🔴 laat',geel:'🟡 vroeg',grijs:'⚫ klaar'};
   document.getElementById('flyer-buurt-lijst').innerHTML = Object.entries(buurtTelling).sort((a,b)=>b[1].totaal-a[1].totaal).map(([b,tel])=>{
     const kleuren = Object.entries(tel.kleur).map(([k,n])=>`${kleurLabel[k]||k} (${n})`).join(' · ');
-    return `<label style="display:flex;align-items:flex-start;gap:10px;background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;border:1.5px solid #e8e8e8;" onclick="this.querySelector('input').click();this.style.borderColor=this.querySelector('input').checked?'#1d7a6e':'#e8e8e8';">
-      <input type="checkbox" value="${b.replace(/"/g,'')}" onchange="flyerBuurtToggle(this)" style="margin-top:2px;accent-color:#1d7a6e;width:16px;height:16px;">
-      <div><div style="font-size:13px;font-weight:600;color:#222;">${b}</div><div style="font-size:11px;color:#999;margin-top:2px;">${tel.totaal} VvEs · ${kleuren}</div></div>
+    const safeB = b.replace(/"/g,'').replace(/'/g,'&#39;');
+    return `<label style="display:flex;align-items:flex-start;gap:10px;background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;cursor:pointer;border:2px solid #e8e8e8;transition:border-color 0.15s;" id="buurt-label-${safeB}">
+      <input type="checkbox" value="${safeB}" onchange="flyerBuurtToggle(this);document.getElementById('buurt-label-${safeB}').style.borderColor=this.checked?'#1d7a6e':'#e8e8e8';" style="margin-top:2px;accent-color:#1d7a6e;width:18px;height:18px;flex-shrink:0;">
+      <div><div style="font-size:14px;font-weight:600;color:#222;">${b}</div><div style="font-size:11px;color:#999;margin-top:3px;">${tel.totaal} VvEs · ${kleuren}</div></div>
     </label>`;
   }).join('');
   flyerNaarStap(3);
@@ -1423,7 +1471,57 @@ function flyerOpslaanTijd() {
   applyFilters();
 }
 
-// ── Pincode ──────────────────────────────────────────
+// ── Kaart toegang pincode ────────────────────────────
+const KAART_PIN_DEFAULT = '2580';
+let _kaartPinBuffer = '';
+
+function getKaartPin() { return localStorage.getItem('vve_kaart_pin') || KAART_PIN_DEFAULT; }
+
+function kaartPinInvoer(cijfer) {
+  if (_kaartPinBuffer.length >= 4) return;
+  _kaartPinBuffer += cijfer;
+  kaartPinUpdateDots();
+  if (_kaartPinBuffer.length === 4) setTimeout(kaartPinControleer, 200);
+}
+
+function kaartPinWis() {
+  _kaartPinBuffer = _kaartPinBuffer.slice(0, -1);
+  kaartPinUpdateDots();
+}
+
+function kaartPinUpdateDots() {
+  document.querySelectorAll('.kpin-dot').forEach((dot, i) => {
+    dot.style.background = i < _kaartPinBuffer.length ? '#fff' : 'transparent';
+    dot.style.borderColor = i < _kaartPinBuffer.length ? '#fff' : 'rgba(255,255,255,0.6)';
+  });
+}
+
+function kaartPinControleer() {
+  if (_kaartPinBuffer === getKaartPin()) {
+    const overlay = document.getElementById('kaart-pin-overlay');
+    overlay.style.transition = 'opacity 0.4s';
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.style.display = 'none', 400);
+    sessionStorage.setItem('vve_toegang', '1');
+  } else {
+    document.getElementById('kaart-pin-msg').textContent = 'Onjuiste pincode';
+    document.getElementById('kaart-pin-msg').style.color = '#ffcccc';
+    document.querySelectorAll('.kpin-dot').forEach(d => { d.style.background = '#ff6b6b'; d.style.borderColor = '#ff6b6b'; });
+    setTimeout(() => {
+      _kaartPinBuffer = '';
+      kaartPinUpdateDots();
+      document.getElementById('kaart-pin-msg').textContent = 'Voer de pincode in';
+      document.getElementById('kaart-pin-msg').style.color = 'rgba(255,255,255,0.75)';
+    }, 800);
+  }
+}
+
+// Check of al ingelogd in deze sessie
+if (sessionStorage.getItem('vve_toegang') === '1') {
+  document.getElementById('kaart-pin-overlay').style.display = 'none';
+}
+
+// ── Pincode (flyer modus) ─────────────────────────────
 let _pinBuffer = '';
 let _pinLocked = false;
 const PIN_DEFAULT = '1234';
