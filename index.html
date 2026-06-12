@@ -237,9 +237,10 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 
 <!-- Mobile flyer klaar-knop -->
 <div id="flyer-nav-card" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:900;padding:16px;pointer-events:none;">
-  <div style="background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 -2px 20px rgba(0,0,0,0.15);pointer-events:all;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-    <div id="fnc-nr" style="font-size:13px;color:#666;font-weight:600;"></div>
-    <button onclick="flyerNavKlaarVragen()" style="padding:14px 28px;border-radius:12px;border:none;background:#1d7a6e;color:#fff;font-size:16px;font-weight:700;cursor:pointer;">✓ Klaar</button>
+  <div style="background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 -2px 20px rgba(0,0,0,0.15);pointer-events:all;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+    <div id="fnc-nr" style="font-size:13px;color:#666;font-weight:600;flex:1;"></div>
+    <button onclick="flyerMobielToonLijst()" style="padding:14px 18px;border-radius:12px;border:2px solid #1d7a6e;background:#fff;color:#1d7a6e;font-size:15px;font-weight:700;cursor:pointer;">📋 Lijst</button>
+    <button onclick="flyerNavKlaarVragen()" style="padding:14px 18px;border-radius:12px;border:none;background:#1d7a6e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">✓ Klaar</button>
   </div>
 </div>
 
@@ -436,7 +437,10 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   <!-- Header -->
   <div style="padding:18px 20px 14px;background:linear-gradient(135deg,#1d7a6e,#2aa090);position:sticky;top:0;z-index:2;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-size:17px;font-weight:700;color:#fff;">✉ Flyer modus</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="flyerMobielToonKaart()" style="display:none;background:rgba(255,255,255,0.25);border:none;color:#fff;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;" id="flyer-kaart-btn">‹ Kaart</button>
+        <div style="font-size:17px;font-weight:700;color:#fff;">✉ Flyer modus</div>
+      </div>
       <button onclick="sluitFlyerPanel()" style="background:rgba(255,255,255,0.25);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1;">×</button>
     </div>
     <!-- Stap indicator -->
@@ -1953,6 +1957,17 @@ function startGPS() {
 function stopGPS() {
   if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
   gpsLat = null; gpsLng = null;
+}
+
+function flyerMobielToonLijst() {
+  document.getElementById('flyer-panel').style.display = 'block';
+  document.getElementById('flyer-nav-card').style.display = 'none';
+  document.getElementById('flyer-kaart-btn').style.display = 'block';
+}
+
+function flyerMobielToonKaart() {
+  document.getElementById('flyer-panel').style.display = 'none';
+  document.getElementById('flyer-nav-card').style.display = 'block';
 }
 
 function flyerNavToonStop(i) {
