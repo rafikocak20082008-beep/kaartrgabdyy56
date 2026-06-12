@@ -946,10 +946,9 @@ async function highlightGebouwen(d) {
     }
     if (!rdX) { const rd = wgs84NaarRD(d.lat, d.lng); rdX = rd.x; rdY = rd.y; }
 
-    // Stap 2: haal alle panden binnen 50m bbox op (1 call) — snel en precies
-    const r = 50;
-    const bbox = `${rdX-r},${rdY-r},${rdX+r},${rdY+r}`;
-    const wfs = await fetch(`https://service.pdok.nl/lv/bag/wfs/v2_0?service=WFS&version=2.0.0&request=GetFeature&typeName=bag:pand&bbox=${bbox}&outputFormat=application/json&srsName=EPSG:4326&count=20`);
+    // Stap 2: CONTAINS — geeft exact het pand dat het adrespunt bevat (1 call)
+    const filter = encodeURIComponent(`CONTAINS(geometrie,POINT(${rdX} ${rdY}))`);
+    const wfs = await fetch(`https://service.pdok.nl/lv/bag/wfs/v2_0?service=WFS&version=2.0.0&request=GetFeature&typeName=bag:pand&outputFormat=application/json&srsName=EPSG:4326&CQL_FILTER=${filter}&count=5`);
     if (!wfs.ok) throw new Error('HTTP ' + wfs.status);
     const features = ((await wfs.json()).features || []).filter(f => f.geometry);
 
