@@ -888,7 +888,7 @@ async function highlightGebouwen(d) {
     if (nrs.length <= 30) {
       const nrPat = nrs.join('|');
       const q1 = `[out:json][timeout:15];(way["addr:housenumber"~"^(${nrPat})$"](around:${radiusM * 2},${lat},${lng});node["addr:housenumber"~"^(${nrPat})$"](around:${radiusM * 2},${lat},${lng}););out geom;`;
-      const r1 = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', body:'data='+encodeURIComponent(q1)});
+      const r1 = await fetch('https://overpass.kumi.systems/api/interpreter', {method:'POST', body:'data='+encodeURIComponent(q1)});
       const j1 = await r1.json();
       elements = (j1.elements||[]).filter(validWays);
     }
@@ -896,7 +896,7 @@ async function highlightGebouwen(d) {
     // Poging 2 (fallback): alle gebouwen binnen radius van VvE-punt
     if (elements.length === 0) {
       const q2 = `[out:json][timeout:15];way["building"](around:${radiusM},${lat},${lng});out geom;`;
-      const r2 = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', body:'data='+encodeURIComponent(q2)});
+      const r2 = await fetch('https://overpass.kumi.systems/api/interpreter', {method:'POST', body:'data='+encodeURIComponent(q2)});
       const j2 = await r2.json();
       elements = (j2.elements||[]).filter(validWays);
     }
