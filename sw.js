@@ -20,7 +20,7 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = e.request.url;
-  if (url.includes('unpkg.com') || url.includes('cartocdn') || url.includes('nominatim') || url.includes('openstreetmap') || url.includes('overpass-api.de')) {
+  if (url.includes('unpkg.com') || url.includes('cartocdn') || url.includes('nominatim') || url.includes('openstreetmap') || url.includes('overpass-api.de') || url.includes('overpass.kumi.systems')) {
     return;
   }
   // index.html altijd network-first zodat updates direct zichtbaar zijn
