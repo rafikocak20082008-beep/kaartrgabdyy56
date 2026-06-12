@@ -2029,6 +2029,8 @@ function _openFlyerModus() {
 
 function toggleFlyerModus() {
   if (!flyerModus) {
+    document.getElementById('legenda').style.display = 'none';
+    document.getElementById('top-btns').style.display = 'none';
     toonPinModal();
   } else {
     flyerModus = false;
