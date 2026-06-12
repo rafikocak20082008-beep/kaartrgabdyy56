@@ -936,9 +936,11 @@ async function highlightGebouwen(d) {
   deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
 
   const nrs = parseAdresReeks(d);
-  // Sample max 4 huisnummers verspreid over de reeks
-  const stap = Math.max(1, Math.floor(nrs.length / 4));
-  const sample = [...new Set([nrs[0], nrs[stap], nrs[stap*2], nrs[nrs.length-1]].filter(Boolean))];
+  // Sample huisnummers verspreid over de reeks — meer bij grotere reeksen
+  const aantalSamples = nrs.length <= 4 ? nrs.length : nrs.length <= 20 ? 5 : nrs.length <= 60 ? 7 : 10;
+  const sample = [...new Set(
+    Array.from({length: aantalSamples}, (_, i) => nrs[Math.round(i * (nrs.length - 1) / (aantalSamples - 1 || 1))]).filter(Boolean)
+  )];
 
   const getPandVoorNr = async (nr) => {
     const q = encodeURIComponent(`${d.straat} ${nr} Amsterdam`);
