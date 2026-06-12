@@ -935,13 +935,24 @@ async function highlightGebouwen(d) {
   _gebouwStatus('🔍 Gebouwen laden...');
   deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
 
-  const nrs = parseAdresReeks(d);
-  const {x, y} = wgs84NaarRD(d.lat, d.lng);
-  const r = Math.max(120, Math.min(nrs.length * 8, 350));
-
   try {
-    const bbox = `${x-r},${y-r},${x+r},${y+r}`;
-    const url = `https://service.pdok.nl/lv/bag/wfs/v2_0?service=WFS&version=2.0.0&request=GetFeature&typeName=bag:pand&bbox=${bbox}&outputFormat=application/json&srsName=EPSG:4326&count=100`;
+    // Stap 1: zoek exact adres op via PDOK Locatieserver → centroide in RD
+    const q = encodeURIComponent(`${d.straat} ${d.nr} Amsterdam`);
+    const lsResp = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${q}&fq=type:adres&rows=1`);
+    let rdX, rdY;
+    if (lsResp.ok) {
+      const ls = await lsResp.json();
+      const doc = ls?.response?.docs?.[0];
+      const m = doc?.centroide_rd?.match(/POINT\((\S+)\s+(\S+)\)/);
+      if (m) { rdX = parseFloat(m[1]); rdY = parseFloat(m[2]); }
+    }
+    // Fallback: converteer d.lat/d.lng naar RD
+    if (!rdX) { const rd = wgs84NaarRD(d.lat, d.lng); rdX = rd.x; rdY = rd.y; }
+
+    // Stap 2: haal pand op met kleine bbox (60m) → slechts 1 of 2 gebouwen
+    const r = 60;
+    const bbox = `${rdX-r},${rdY-r},${rdX+r},${rdY+r}`;
+    const url = `https://service.pdok.nl/lv/bag/wfs/v2_0?service=WFS&version=2.0.0&request=GetFeature&typeName=bag:pand&bbox=${bbox}&outputFormat=application/json&srsName=EPSG:4326&count=20`;
     const resp = await fetch(url);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const geojson = await resp.json();
