@@ -1585,12 +1585,18 @@ function flyerToonRoute() {
     const kleur = getFlyerKleurStatus(d);
     const kleurHex = {oranje:'#f59500',groen:'#27ae60',blauw:'#3498db',rood:'#e74c3c',geel:'#f5c542',grijs:'#bbb'}[kleur]||'#bbb';
     const gedaanFlyersTxt = [b1,b2,b3].filter(Boolean).map(b=>b.flyer).join(' → ');
-    return `<div onclick="flyerPuntKlik(${alleData.indexOf(d)})" style="background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;border-left:4px solid ${kleurHex};display:flex;gap:10px;align-items:flex-start;">
-      <div style="font-size:18px;font-weight:800;color:${kleurHex};min-width:24px;">${i+1}</div>
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:700;color:#222;">${d.straat} ${getAdresRange(d)}</div>
-        <div style="font-size:11px;color:#888;margin-top:2px;">${d.app} app. · bezoek ${volgend}</div>
-        <div style="font-size:11px;color:#999;margin-top:3px;">Bezoek ${volgend} · ${gedaanFlyersTxt||'Nog niet gedaan'}</div>
+    return `<div onclick="flyerPuntKlik(${alleData.indexOf(d)})" style="background:#fff;border-radius:16px;padding:14px 16px;margin-bottom:10px;cursor:pointer;border-left:5px solid ${kleurHex};box-shadow:0 2px 8px rgba(0,0,0,0.07);">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:22px;font-weight:900;color:${kleurHex};min-width:30px;text-align:center;">${i+1}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;">${d.straat}</div>
+          <div style="font-size:24px;font-weight:900;color:#111;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${getAdresRange(d)}</div>
+          <div style="font-size:11px;color:#999;margin-top:3px;">${d.postcode} · ${d.app} app.</div>
+        </div>
+        <div style="text-align:center;background:${kleurHex}22;border-radius:10px;padding:6px 10px;min-width:44px;">
+          <div style="font-size:9px;color:${kleurHex};font-weight:700;text-transform:uppercase;">bezoek</div>
+          <div style="font-size:22px;font-weight:900;color:${kleurHex};line-height:1.1;">${volgend}</div>
+        </div>
       </div>
     </div>`;
   }).join('');
