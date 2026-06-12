@@ -1307,12 +1307,24 @@ function syncFromInput(){
 function updateRangeFill(){
   const min=parseInt(document.getElementById('slider-min').value);
   const max=parseInt(document.getElementById('slider-max').value);
-  document.getElementById('range-fill').style.left=((min-2)/498*100)+'%';
-  document.getElementById('range-fill').style.width=((max-min)/498*100)+'%';
+  const pct = v => Math.round(v / 2000 * 100);
+  document.getElementById('range-fill').style.left = pct(min) + '%';
+  document.getElementById('range-fill').style.width = (pct(max) - pct(min)) + '%';
 }
 function toggleFilters(){
-  document.getElementById('filter-panel').classList.toggle('open');
+  const panel = document.getElementById('filter-panel');
+  const opening = !panel.classList.contains('open');
+  panel.classList.toggle('open');
   document.getElementById('filter-btn').classList.toggle('active');
+  if (window.innerWidth <= 600) {
+    const hide = ['stats','legenda','flyer-nav-card','sidebar'];
+    hide.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (opening) { el.dataset.hiddenByFilter = el.style.display; el.style.display = 'none'; }
+      else { el.style.display = el.dataset.hiddenByFilter || ''; delete el.dataset.hiddenByFilter; }
+    });
+  }
 }
 function resetFilters(){
   filters={type:'all',minApp:0,maxApp:2000,beheerder:'',stadsdeel:'',status:''};
