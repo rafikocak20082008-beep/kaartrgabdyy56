@@ -363,7 +363,6 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 <div id="sidebar">
   <div id="sidebar-img">
     <button id="sidebar-close" onclick="document.getElementById('sidebar').classList.remove('open');document.getElementById('stats').style.display='';clearGebouwHighlight();">‹</button>
-    <div id="gebouw-status" style="position:absolute;bottom:6px;left:0;right:0;text-align:center;font-size:11px;color:rgba(255,255,255,0.85);font-weight:600;pointer-events:none;"></div>
     <svg width="60" height="60" viewBox="0 0 100 100" fill="none" opacity="0.6">
       <rect x="18" y="32" width="26" height="52" rx="3" fill="#f5a623"/>
       <rect x="54" y="16" width="26" height="68" rx="3" fill="#f5a623"/>
@@ -551,7 +550,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 </div>
 
 <script>
-const {DeckGL, ScatterplotLayer, GeoJsonLayer} = deck;
+const {DeckGL, ScatterplotLayer} = deck;
 
 // Logo laden
 fetch('').then(()=>{}).catch(()=>{});
@@ -809,15 +808,6 @@ function renderLayers(data){
   });
 
   const layers = [clusterLayer, tekstLayer, puntLayer, klantLayer];
-  if (vveGebouwFeatures) {
-    const kleur = vveGebouwFeatures.premium ? [29,122,110,210] : [123,198,126,210];
-    layers.push(new GeoJsonLayer({
-      id:'vve-gebouwen',
-      data: vveGebouwFeatures,
-      filled: true, getFillColor: kleur,
-      stroked: true, getLineColor: [255,255,255,255], lineWidthMinPixels: 2,
-    }));
-  }
   if (gpsLat !== null) {
     layers.push(new ScatterplotLayer({
       id:'gps-ring', data:[{lat:gpsLat,lng:gpsLng}],
@@ -880,7 +870,6 @@ function applyFilters(){
 }
 
 let geselecteerdeVvE = null;
-let vveGebouwFeatures = null;
 
 function parseAdresReeks(d) {
   const naam = d.naam.replace(/ TE [A-Z\s]+$/i,'');
@@ -916,60 +905,8 @@ function distTotLijnstuk(px, py, ax, ay, bx, by) {
   return Math.hypot(px - (ax + t*dx), py - (ay + t*dy));
 }
 
-function _gebouwStatus(tekst) {
-  const el = document.getElementById('gebouw-status');
-  if (el) el.textContent = tekst;
-}
-
-function wgs84NaarRD(lat, lng) {
-  const dLat = 0.36 * (lat - 52.15517440);
-  const dLng = 0.36 * (lng - 5.38720621);
-  const x = 155000 + 190094.945*dLng - 11832.228*dLng*dLat - 114.221*dLng*dLat*dLat - 32.391*dLng*dLng*dLng;
-  const y = 463000 + 309056.544*dLat + 3638.893*dLng*dLng + 73.077*dLat*dLat - 157.984*dLat*dLng*dLng;
-  return {x: Math.round(x), y: Math.round(y)};
-}
-
-async function highlightGebouwen(d) {
-  vveGebouwFeatures = null;
-  applyFilters();
-  _gebouwStatus('🔍 Gebouwen laden...');
-  deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
-
-  try {
-    // Stap 1: zoek exact adrescoördinaat op (1 call)
-    const q = encodeURIComponent(`${d.straat} ${d.nr} Amsterdam`);
-    const ls = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${q}&fq=type:adres&rows=1`);
-    let rdX, rdY;
-    if (ls.ok) {
-      const m = (await ls.json())?.response?.docs?.[0]?.centroide_rd?.match(/POINT\((\S+)\s+(\S+)\)/);
-      if (m) { rdX = parseFloat(m[1]); rdY = parseFloat(m[2]); }
-    }
-    if (!rdX) { const rd = wgs84NaarRD(d.lat, d.lng); rdX = rd.x; rdY = rd.y; }
-
-    // Stap 2: kleine bbox van 15m — zo klein dat slechts 1 pand erin valt
-    const r = 15;
-    const bbox = `${rdX-r},${rdY-r},${rdX+r},${rdY+r}`;
-    const wfs = await fetch(`https://service.pdok.nl/lv/bag/wfs/v2_0?service=WFS&version=2.0.0&request=GetFeature&typeName=bag:pand&bbox=${bbox}&outputFormat=application/json&srsName=EPSG:4326&count=5`);
-    if (!wfs.ok) throw new Error('HTTP ' + wfs.status);
-    const features = ((await wfs.json()).features || []).filter(f => f.geometry);
-
-    if (features.length > 0) {
-      vveGebouwFeatures = {type:'FeatureCollection', features, premium: d.totaal >= 50};
-      _gebouwStatus('');
-      applyFilters();
-    } else {
-      _gebouwStatus('⚠️ Geen gebouwen gevonden');
-    }
-  } catch(e) {
-    _gebouwStatus('❌ ' + e.message);
-    console.error('highlightGebouwen:', e);
-  }
-}
-
 function clearGebouwHighlight() {
-  vveGebouwFeatures = null;
   geselecteerdeVvE = null;
-  applyFilters();
 }
 
 function openSidebar(d){
@@ -988,7 +925,7 @@ function openSidebar(d){
   d.website = d.website || '';
   d.email = d.email || '';
   geselecteerdeVvE = d;
-  highlightGebouwen(d);
+  deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
   document.getElementById('sidebar').classList.add('open');
   document.getElementById('stats').style.display='none';
   document.getElementById('fav-popup').style.display = 'none';
