@@ -89,8 +89,10 @@ body { font-family: Arial, sans-serif; height: 100vh; overflow: hidden; position
 #reset-btn:hover { background: #fff0f0; color: #e05; border-color: #e05; }
 
 #top-btns { position: absolute; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 8px; }
-.top-btn { width: 44px; height: 44px; border-radius: 50%; border: none; background: rgba(255,255,255,0.95); box-shadow: 0 4px 16px rgba(0,0,0,0.12); cursor: pointer; font-size: 18px; transition: background 0.2s; }
-.top-btn.active { background: #1d7a6e; color: #fff; }
+.top-btn { width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid rgba(29,122,110,0.15); background: rgba(255,255,255,0.97); box-shadow: 0 2px 12px rgba(29,122,110,0.13); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.18s; color: #1d7a6e; }
+.top-btn:hover { background: #f0faf8; box-shadow: 0 4px 18px rgba(29,122,110,0.2); }
+.top-btn.active { background: #1d7a6e; color: #fff; border-color: #1d7a6e; }
+.top-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 body.dark-mode #legenda,
 body.dark-mode #stats,
@@ -271,10 +273,18 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 </div>
 
 <div id="top-btns">
-  <button class="top-btn" id="dark-btn" onclick="toggleDarkMode()" title="Donkere modus" style="font-size:16px;">🌙</button>
-  <button class="top-btn" id="flyer-btn" onclick="toggleFlyerModus()" title="Flyer modus" style="font-size:14px;font-weight:700;">✉</button>
-  <button class="top-btn" id="fav-top-btn" onclick="toonFavorieten()" title="Favorieten">★</button>
-  <button class="top-btn" id="export-top-btn" onclick="exporteerExcel()" title="Exporteer">⬇</button>
+  <button class="top-btn" id="dark-btn" onclick="toggleDarkMode()" title="Donkere modus">
+    <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+  <button class="top-btn" id="flyer-btn" onclick="toggleFlyerModus()" title="Flyer modus">
+    <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,4 12,13 22,4"/></svg>
+  </button>
+  <button class="top-btn" id="fav-top-btn" onclick="toonFavorieten()" title="Favorieten">
+    <svg viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+  </button>
+  <button class="top-btn" id="export-top-btn" onclick="exporteerExcel()" title="Exporteer naar Excel">
+    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+  </button>
 </div>
 
 <div id="filter-panel">
@@ -1317,7 +1327,7 @@ function toggleFilters(){
   panel.classList.toggle('open');
   document.getElementById('filter-btn').classList.toggle('active');
   if (window.innerWidth <= 600) {
-    const hide = ['stats','legenda','flyer-nav-card','sidebar'];
+    const hide = ['stats','legenda','flyer-nav-card','sidebar','top-btns'];
     hide.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
