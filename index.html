@@ -156,19 +156,22 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
       <div class="kpin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,0.6);background:transparent;transition:background 0.15s;"></div>
       <div class="kpin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,0.6);background:transparent;transition:background 0.15s;"></div>
     </div>
+    <input id="kaart-pin-keyboard" type="tel" inputmode="numeric" maxlength="4" autocomplete="off" autofocus
+      style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;"
+      onkeydown="if(event.key>='0'&&event.key<='9'){kaartPinInvoer(event.key);event.preventDefault();}else if(event.key==='Backspace'){kaartPinWis();event.preventDefault();}">
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-      <button class="kpin-key" onclick="kaartPinInvoer('1')">1</button>
-      <button class="kpin-key" onclick="kaartPinInvoer('2')">2</button>
-      <button class="kpin-key" onclick="kaartPinInvoer('3')">3</button>
-      <button class="kpin-key" onclick="kaartPinInvoer('4')">4</button>
-      <button class="kpin-key" onclick="kaartPinInvoer('5')">5</button>
-      <button class="kpin-key" onclick="kaartPinInvoer('6')">6</button>
-      <button class="kpin-key" onclick="kaartPinInvoer('7')">7</button>
-      <button class="kpin-key" onclick="kaartPinInvoer('8')">8</button>
-      <button class="kpin-key" onclick="kaartPinInvoer('9')">9</button>
+      <button class="kpin-key" onmousedown="event.preventDefault()" onclick="kaartPinInvoer('1')">1</button>
+      <button class="kpin-key" onmousedown="event.preventDefault()" onclick="kaartPinInvoer('2')">2</button>
+      <button class="kpin-key" onmousedown="event.preventDefault()" onclick="kaartPinInvoer('3')">3</button>
+      <button class="kpin-key" onmousedown="event.preventDefault()" onclick="kaartPinInvoer('4')">4</button>
+      <button class="kpin-key" onmousedown="event.preventDefault()" onclick="kaartPinInvoer('5')">5</button>
+      <button class="kpin-key" onmousedown="event.preventDefault()" onclick="kaartPinInvoer('6')">6</button>
+      <button class="kpin-key" onmousedown="event.preventDefault()" onclick="kaartPinInvoer('7')">7</button>
+      <button class="kpin-key" onmousedown="event.preventDefault()" onclick="kaartPinInvoer('8')">8</button>
+      <button class="kpin-key" onmousedown="event.preventDefault()" onclick="kaartPinInvoer('9')">9</button>
       <div></div>
-      <button class="kpin-key" onclick="kaartPinInvoer('0')">0</button>
-      <button class="kpin-key" onclick="kaartPinWis()" style="font-size:18px;">⌫</button>
+      <button class="kpin-key" onmousedown="event.preventDefault()" onclick="kaartPinInvoer('0')">0</button>
+      <button class="kpin-key" onmousedown="event.preventDefault()" onclick="kaartPinWis()" style="font-size:18px;">⌫</button>
     </div>
   </div>
 </div>
