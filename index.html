@@ -921,6 +921,14 @@ function _gebouwStatus(tekst) {
   if (el) el.textContent = tekst;
 }
 
+function wgs84NaarRD(lat, lng) {
+  const dLat = 0.36 * (lat - 52.15517440);
+  const dLng = 0.36 * (lng - 5.38720621);
+  const x = 155000 + 190094.945*dLng - 11832.228*dLng*dLat - 114.221*dLng*dLat*dLat - 32.391*dLng*dLng*dLng;
+  const y = 463000 + 309056.544*dLat + 3638.893*dLng*dLng + 73.077*dLat*dLat - 157.984*dLat*dLng*dLng;
+  return {x: Math.round(x), y: Math.round(y)};
+}
+
 async function highlightGebouwen(d) {
   vveGebouwFeatures = null;
   applyFilters();
@@ -928,23 +936,14 @@ async function highlightGebouwen(d) {
   deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
 
   const nrs = parseAdresReeks(d);
-  const lat = d.lat, lng = d.lng;
-  const radius = Math.max(100, Math.min(nrs.length * 8, 300));
-
-  const toFeature = way => {
-    const coords = way.geometry.map(p => [p.lon, p.lat]);
-    if (coords[0][0] !== coords[coords.length-1][0] || coords[0][1] !== coords[coords.length-1][1]) coords.push(coords[0]);
-    return {type:'Feature', properties:{hn: way.tags?.['addr:housenumber'] || ''}, geometry:{type:'Polygon', coordinates:[coords]}};
-  };
-  const isWay = e => e.type === 'way' && Array.isArray(e.geometry) && e.geometry.length >= 3;
+  const {x, y} = wgs84NaarRD(d.lat, d.lng);
+  const r = Math.max(120, Math.min(nrs.length * 8, 350));
 
   try {
-    // PDOK BAG WFS — officiële Nederlandse gebouwenregistratie, gratis, CORS OK
-    const delta = Math.max(0.001, Math.min(nrs.length * 0.00008, 0.003));
-    const bbox = `${lng-delta},${lat-delta},${lng+delta},${lat+delta}`;
-    const url = `https://service.pdok.nl/lv/bag/wfs/v2_0?service=WFS&version=2.0.0&request=GetFeature&typeName=bag:pand&bbox=${bbox},EPSG:4326&outputFormat=application/json&srsName=EPSG:4326&count=100`;
+    const bbox = `${x-r},${y-r},${x+r},${y+r}`;
+    const url = `https://service.pdok.nl/lv/bag/wfs/v2_0?service=WFS&version=2.0.0&request=GetFeature&typeName=bag:pand&bbox=${bbox}&outputFormat=application/json&srsName=EPSG:4326&count=100`;
     const resp = await fetch(url);
-    if (!resp.ok) throw new Error('PDOK HTTP ' + resp.status);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const geojson = await resp.json();
     const features = (geojson.features || []).filter(f => f.geometry);
 
