@@ -363,6 +363,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 <div id="sidebar">
   <div id="sidebar-img">
     <button id="sidebar-close" onclick="document.getElementById('sidebar').classList.remove('open');document.getElementById('stats').style.display='';clearGebouwHighlight();">‹</button>
+    <div id="gebouw-status" style="position:absolute;bottom:6px;left:0;right:0;text-align:center;font-size:11px;color:rgba(255,255,255,0.85);font-weight:600;pointer-events:none;"></div>
     <svg width="60" height="60" viewBox="0 0 100 100" fill="none" opacity="0.6">
       <rect x="18" y="32" width="26" height="52" rx="3" fill="#f5a623"/>
       <rect x="54" y="16" width="26" height="68" rx="3" fill="#f5a623"/>
@@ -915,14 +916,20 @@ function distTotLijnstuk(px, py, ax, ay, bx, by) {
   return Math.hypot(px - (ax + t*dx), py - (ay + t*dy));
 }
 
+function _gebouwStatus(tekst) {
+  const el = document.getElementById('gebouw-status');
+  if (el) el.textContent = tekst;
+}
+
 async function highlightGebouwen(d) {
   vveGebouwFeatures = null;
   applyFilters();
+  _gebouwStatus('🔍 Gebouwen laden...');
   deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
 
   const nrs = parseAdresReeks(d);
   const lat = d.lat, lng = d.lng;
-  const radius = Math.max(80, Math.min(nrs.length * 8, 250));
+  const radius = Math.max(100, Math.min(nrs.length * 8, 300));
 
   const toFeature = way => {
     const coords = way.geometry.map(p => [p.lon, p.lat]);
@@ -931,32 +938,42 @@ async function highlightGebouwen(d) {
   };
   const isWay = e => e.type === 'way' && Array.isArray(e.geometry) && e.geometry.length >= 3;
 
-  try {
+  const overpassQuery = async (endpoint) => {
     const nrPat = nrs.slice(0, 60).join('|');
-    // Één query: huisnummer-gebouwen (grote radius) + alle gebouwen (kleine radius)
     const q = `[out:json][timeout:25];(way["building"]["addr:housenumber"~"^(${nrPat})"](around:${radius*2},${lat},${lng});way["building"](around:${radius},${lat},${lng}););out geom tags;`;
-    const resp = await fetch('https://overpass.kumi.systems/api/interpreter', {
-      method: 'POST', body: 'data=' + encodeURIComponent(q)
-    });
+    const resp = await fetch(endpoint, {method:'POST', body:'data='+encodeURIComponent(q)});
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const json = await resp.json();
-    const all = (json.elements || []).filter(isWay);
+    return (await resp.json()).elements || [];
+  };
 
-    // Voorkeur: gebouwen met een passend huisnummer; anders: alles in radius
+  try {
+    let elements = [];
+    try {
+      elements = await overpassQuery('https://overpass.kumi.systems/api/interpreter');
+    } catch(e1) {
+      _gebouwStatus('⚠️ Backup server...');
+      elements = await overpassQuery('https://overpass.openstreetmap.ru/api/interpreter');
+    }
+
+    const all = elements.filter(isWay);
     const matched = all.filter(e => {
       const hn = e.tags?.['addr:housenumber'] || '';
-      return nrs.some(n => hn === n || hn.startsWith(n + '-') || hn.startsWith(n + 'A') || hn.startsWith(n + 'B'));
+      return nrs.some(n => hn === n || hn.startsWith(n+'-') || hn.startsWith(n+'A') || hn.startsWith(n+'B'));
     });
     const toShow = matched.length > 0 ? matched : all;
-
     const features = toShow.map(toFeature);
+
     if (features.length > 0) {
       vveGebouwFeatures = {type:'FeatureCollection', features, premium: d.totaal >= 50};
+      _gebouwStatus('');
       applyFilters();
     } else {
-      console.warn('Geen gebouwen gevonden voor', d.naam, '— lat:', lat, 'lng:', lng, 'nrs:', nrs.slice(0,5));
+      _gebouwStatus('⚠️ Geen gebouwdata gevonden');
     }
-  } catch(e) { console.error('highlightGebouwen:', e); }
+  } catch(e) {
+    _gebouwStatus('❌ Fout: ' + e.message);
+    console.error('highlightGebouwen:', e);
+  }
 }
 
 function clearGebouwHighlight() {
