@@ -74,6 +74,8 @@ body { font-family: Arial, sans-serif; height: 100vh; overflow: hidden; position
 .type-toggle { display: flex; gap: 8px; }
 .type-btn { flex: 1; padding: 10px 8px; border-radius: 10px; border: 1.5px solid #e8e8e8; background: #fff; font-size: 13px; cursor: pointer; text-align: center; font-weight: 600; color: #444; }
 .type-btn.active { background: #1d7a6e; color: #fff; border-color: #1d7a6e; }
+.intern-btn { padding: 8px 14px; border-radius: 20px; border: 1.5px solid #e8e8e8; background: #fff; font-size: 13px; cursor: pointer; font-weight: 600; color: #444; transition: all 0.15s; }
+.intern-btn.active { background: #1d7a6e; color: #fff; border-color: #1d7a6e; }
 .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .slider-input { width: 78px; padding: 8px 8px; border: 1.5px solid #e8e8e8; border-radius: 8px; font-size: 13px; text-align: center; outline: none; }
 .slider-sep { color: #bbb; font-size: 14px; }
@@ -367,6 +369,16 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
         <button class="type-btn" id="klant-niet" onclick="setKlantFilter('geen')">Geen klant</button>
       </div>
     </div>
+    <div class="filter-section">
+      <div class="filter-label">Beheerder (intern)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
+        <button class="intern-btn active" id="intern-all" onclick="setInternBeheerder('')">Alle</button>
+        <button class="intern-btn" id="intern-farhaad" onclick="setInternBeheerder('Farhaad Madarun')">Farhaad</button>
+        <button class="intern-btn" id="intern-melanie" onclick="setInternBeheerder('Melanie van Rossum')">Melanie</button>
+        <button class="intern-btn" id="intern-willem" onclick="setInternBeheerder('Willem van der Laan')">Willem</button>
+        <button class="intern-btn" id="intern-randy" onclick="setInternBeheerder('Randy Groot')">Randy</button>
+      </div>
+    </div>
     <button id="reset-btn" onclick="resetFilters()">↺ Reset alle filters</button>
   </div>
 </div>
@@ -633,7 +645,7 @@ async function syncFlyerNaarGitHub() {
   } catch(e) { console.warn('syncFlyerNaarGitHub:', e); }
 }
 // ─────────────────────────────────────────────────────────────────────────
-let filters = { type: 'all', minApp: 0, maxApp: 2000, beheerder: '', stadsdeel: '', status: '', klant: 'all' };
+let filters = { type: 'all', minApp: 0, maxApp: 2000, beheerder: '', stadsdeel: '', status: '', klant: 'all', internBeheerder: '' };
 
 // Data wordt extern geladen
 
@@ -843,6 +855,14 @@ function setKlantFilter(val){
   applyFilters();
 }
 
+function setInternBeheerder(naam){
+  filters.internBeheerder=naam;
+  if(naam) filters.klant='klant';
+  ['all','farhaad','melanie','willem','randy'].forEach(k=>document.getElementById('intern-'+k).classList.toggle('active',k==='all'?naam==='':naam.toLowerCase().startsWith(k)));
+  if(naam) ['all','klant','geen'].forEach(k=>document.getElementById('klant-'+k).classList.toggle('active',k==='klant'));
+  applyFilters();
+}
+
 let _filterTimer = null;
 function applyFiltersDebounced(){ clearTimeout(_filterTimer); _filterTimer = setTimeout(applyFilters, 80); }
 
@@ -857,6 +877,7 @@ function applyFilters(){
     if(filters.type==='premium' && d.totaal<50) continue;
     if(filters.klant==='klant' && !d.klant) continue;
     if(filters.klant==='geen' && d.klant) continue;
+    if(filters.internBeheerder && (d.beheerder||'')!==filters.internBeheerder) continue;
     if(d.totaal<filters.minApp || d.totaal>filters.maxApp) continue;
     if(filters.beheerder==='geen' && d.beheerder) continue;
     if(beheerderQ && !(d.beheerder||'').toLowerCase().includes(beheerderQ)) continue;
@@ -1341,12 +1362,14 @@ function toggleFilters(){
   }
 }
 function resetFilters(){
-  filters={type:'all',minApp:0,maxApp:2000,beheerder:'',stadsdeel:'',status:''};
+  filters={type:'all',minApp:0,maxApp:2000,beheerder:'',stadsdeel:'',status:'',klant:'all',internBeheerder:''};
   document.getElementById('min-input').value=2; document.getElementById('max-input').value=500;
   document.getElementById('slider-min').value=2; document.getElementById('slider-max').value=500;
   document.getElementById('f-beheerder-input').value=''; document.getElementById('kvk-search').value='';
   document.querySelectorAll('.stadsdeel-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
   ['all','basic','premium'].forEach(t=>document.getElementById('type-'+t).classList.toggle('active',t==='all'));
+  ['all','klant','geen'].forEach(k=>document.getElementById('klant-'+k).classList.toggle('active',k==='all'));
+  ['all','farhaad','melanie','willem','randy'].forEach(k=>document.getElementById('intern-'+k).classList.toggle('active',k==='all'));
   applyFilters();
 }
 function nearestNeighborSort(data) {
