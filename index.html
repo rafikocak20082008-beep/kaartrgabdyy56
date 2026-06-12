@@ -853,40 +853,57 @@ async function geocodeerPunt(straat, nr, gemeente) {
   return null;
 }
 
+function distTotLijnstuk(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  if (dx === 0 && dy === 0) return Math.hypot(px - ax, py - ay);
+  const t = Math.max(0, Math.min(1, ((px-ax)*dx + (py-ay)*dy) / (dx*dx + dy*dy)));
+  return Math.hypot(px - (ax + t*dx), py - (ay + t*dy));
+}
+
 async function highlightGebouwen(d) {
   vveGebouwFeatures = null;
   applyFilters();
   deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
 
   const nrs = parseAdresReeks(d);
-  let minLat = d.lat - 0.0008, maxLat = d.lat + 0.0008;
-  let minLng = d.lng - 0.0015, maxLng = d.lng + 0.0015;
 
-  // Geocodeer eerste + laatste om exacte bbox te bepalen
+  // Geocodeer eerste + laatste huisnummer om straat-lijn te bepalen
+  let p1 = [d.lng, d.lat], p2 = [d.lng, d.lat];
   if (nrs.length >= 2) {
     const [c1, c2] = await Promise.all([
       geocodeerPunt(d.straat, nrs[0], d.gemeente),
       new Promise(res => setTimeout(async () => res(await geocodeerPunt(d.straat, nrs[nrs.length-1], d.gemeente)), 1100))
     ]);
-    if (c1 && c2) {
-      const pad = 0.0008;
-      minLat = Math.min(c1[1], c2[1]) - pad;
-      maxLat = Math.max(c1[1], c2[1]) + pad;
-      minLng = Math.min(c1[0], c2[0]) - pad;
-      maxLng = Math.max(c1[0], c2[0]) + pad;
-    }
+    if (c1) p1 = c1;
+    if (c2) p2 = c2;
   }
 
-  // Overpass: alle gebouwen in de bbox
+  // Ruime bbox rond de straat-lijn
+  const pad = 0.0007;
+  const minLat = Math.min(p1[1], p2[1]) - pad;
+  const maxLat = Math.max(p1[1], p2[1]) + pad;
+  const minLng = Math.min(p1[0], p2[0]) - pad;
+  const maxLng = Math.max(p1[0], p2[0]) + pad;
+
   const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
-  const query = `[out:json][timeout:15];way["building"](${bbox});out geom;`;
+  const query = `[out:json][timeout:20];way["building"](${bbox});out geom;`;
   try {
     const resp = await fetch('https://overpass-api.de/api/interpreter', {
       method:'POST', body:'data='+encodeURIComponent(query)
     });
     const json = await resp.json();
+
+    // Filter: alleen gebouwen waarvan het middelpunt binnen ~40m van de straat-lijn valt
+    const maxDist = 0.00042;
     const features = (json.elements||[])
       .filter(e => e.type==='way' && e.geometry && e.geometry.length >= 3)
+      .filter(e => {
+        const lats = e.geometry.map(p => p.lat);
+        const lons = e.geometry.map(p => p.lon);
+        const cLat = lats.reduce((a,b) => a+b) / lats.length;
+        const cLon = lons.reduce((a,b) => a+b) / lons.length;
+        return distTotLijnstuk(cLon, cLat, p1[0], p1[1], p2[0], p2[1]) < maxDist;
+      })
       .map(way => {
         const coords = way.geometry.map(p => [p.lon, p.lat]);
         if (coords[0][0] !== coords[coords.length-1][0] || coords[0][1] !== coords[coords.length-1][1]) coords.push(coords[0]);
