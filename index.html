@@ -1648,6 +1648,19 @@ function flyerOpslaanTijd() {
   applyFilters();
 }
 
+// ── Toetsenbord ondersteuning voor beide pincodes ────
+document.addEventListener('keydown', function(e) {
+  const kaartOverlay = document.getElementById('kaart-pin-overlay');
+  const flyerOverlay = document.getElementById('pin-overlay');
+  if (kaartOverlay && kaartOverlay.style.display !== 'none') {
+    if (e.key >= '0' && e.key <= '9') kaartPinInvoer(e.key);
+    else if (e.key === 'Backspace') kaartPinWis();
+  } else if (flyerOverlay && flyerOverlay.style.display === 'flex') {
+    if (e.key >= '0' && e.key <= '9') pinInvoer(e.key);
+    else if (e.key === 'Backspace') pinWis();
+  }
+});
+
 // ── Kaart toegang pincode ────────────────────────────
 const KAART_PIN_DEFAULT = '2580';
 let _kaartPinBuffer = '';
