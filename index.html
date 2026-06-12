@@ -1326,8 +1326,12 @@ function toggleFilters(){
   const opening = !panel.classList.contains('open');
   panel.classList.toggle('open');
   document.getElementById('filter-btn').classList.toggle('active');
+  // Legenda altijd verbergen als filters open zijn (ook op laptop)
+  const legendaEl = document.getElementById('legenda');
+  if (legendaEl) legendaEl.style.display = opening ? 'none' : '';
+
   if (window.innerWidth <= 600) {
-    const hide = ['stats','legenda','flyer-nav-card','sidebar','top-btns'];
+    const hide = ['stats','flyer-nav-card','sidebar','top-btns'];
     hide.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -2029,8 +2033,6 @@ function _openFlyerModus() {
 
 function toggleFlyerModus() {
   if (!flyerModus) {
-    document.getElementById('legenda').style.display = 'none';
-    document.getElementById('top-btns').style.display = 'none';
     toonPinModal();
   } else {
     flyerModus = false;
