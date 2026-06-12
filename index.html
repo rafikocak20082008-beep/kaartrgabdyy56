@@ -1397,6 +1397,8 @@ let flyerSessieStart = null;
 let flyerHuidigeStap = 0;
 let flyerDelen = null;
 let flyerHuidigDeel = null;
+let flyerGekozeBuurtItem = null;
+let _flyerBuurtItems = [];
 
 // ── K-means geografische clustering ─────────────────
 function kMeansCluster(vves, k) {
@@ -1545,26 +1547,51 @@ function getFlyerKleurStatus(d) {
 function flyerKiesStadsdeel(sd) {
   flyerStadsdeel = sd;
   flyerGeselecteerdeBuurten = [];
-  const vves = alleData.filter(d => !d.klant && d.lat && d.lng && d.gemeente==='AMSTERDAM' && d.stadsdeel===sd &&
+  flyerGekozeBuurtItem = null;
+  _flyerBuurtItems = [];
+
+  const alleVves = alleData.filter(d => !d.klant && d.lat && d.lng && d.gemeente==='AMSTERDAM' && d.stadsdeel===sd &&
     (flyerType==='basic' ? d.totaal < 50 : d.totaal >= 50));
-  const buurtTelling = {};
-  vves.forEach(d => {
+
+  // Groepeer per buurt
+  const buurtMap = {};
+  alleVves.forEach(d => {
     const b = d.buurt || 'Onbekend';
-    if (!buurtTelling[b]) buurtTelling[b] = {totaal:0, kleur:{}};
-    buurtTelling[b].totaal++;
-    const k = getFlyerKleurStatus(d);
-    buurtTelling[b].kleur[k] = (buurtTelling[b].kleur[k]||0)+1;
+    if (!buurtMap[b]) buurtMap[b] = [];
+    buurtMap[b].push(d);
   });
-  const kleurLabel = {oranje:'🟠 nieuw',groen:'🟢 b2',blauw:'🔵 b3',rood:'🔴 laat',geel:'🟡 vroeg',grijs:'⚫ klaar'};
-  document.getElementById('flyer-buurt-lijst').innerHTML = Object.entries(buurtTelling).sort((a,b)=>b[1].totaal-a[1].totaal).map(([b,tel])=>{
-    const kleuren = Object.entries(tel.kleur).map(([k,n])=>`${kleurLabel[k]||k} (${n})`).join(' · ');
-    const safeB = b.replace(/"/g,'').replace(/'/g,'&#39;');
-    return `<label style="display:flex;align-items:flex-start;gap:10px;background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;cursor:pointer;border:2px solid #e8e8e8;transition:border-color 0.15s;" id="buurt-label-${safeB}">
-      <input type="checkbox" value="${safeB}" onchange="flyerBuurtToggle(this);document.getElementById('buurt-label-${safeB}').style.borderColor=this.checked?'#1d7a6e':'#e8e8e8';" style="margin-top:2px;accent-color:#1d7a6e;width:18px;height:18px;flex-shrink:0;">
-      <div><div style="font-size:14px;font-weight:600;color:#222;">${b}</div><div style="font-size:11px;color:#999;margin-top:3px;">${tel.totaal} VvEs · ${kleuren}</div></div>
-    </label>`;
-  }).join('');
+
+  // Splits grote buurten geografisch, maak klikbare items
+  Object.entries(buurtMap).sort((a,b) => b[1].length - a[1].length).forEach(([buurt, vves]) => {
+    const k = Math.min(4, Math.ceil(vves.length / 25));
+    if (k > 1) {
+      const assignments = kMeansCluster(vves, k);
+      const delen = Array.from({length: k}, () => []);
+      vves.forEach((d, i) => delen[assignments[i]].push(d));
+      delen.forEach((deel, i) => _flyerBuurtItems.push({label: buurt + ' deel ' + (i+1), buurt, deelNr: i+1, totaalDelen: k, vves: deel}));
+    } else {
+      _flyerBuurtItems.push({label: buurt, buurt, deelNr: 1, totaalDelen: 1, vves});
+    }
+  });
+
+  document.getElementById('flyer-buurt-lijst').innerHTML = _flyerBuurtItems.map((item, i) => {
+    const gedaan = item.vves.filter(d => flyerData[String(d.kvk)]?.bezoek1).length;
+    const klaar = gedaan === item.vves.length && item.vves.length > 0;
+    const nieuw = item.vves.filter(d => !flyerData[String(d.kvk)]?.bezoek1).length;
+    return `<button onclick="flyerKiesBuurtDeel(${i})" style="width:100%;padding:14px 16px;border-radius:12px;border:2px solid ${klaar?'#27ae60':'#e0e0e0'};background:${klaar?'#f0fff4':'#fff'};cursor:pointer;margin-bottom:8px;text-align:left;display:block;">
+      <div style="font-size:14px;font-weight:700;color:${klaar?'#27ae60':'#222'};">${item.label}${klaar?' ✓':''}</div>
+      <div style="font-size:11px;color:#999;margin-top:3px;">${nieuw} te doen${gedaan>0?' · '+gedaan+' gedaan':''}</div>
+    </button>`;
+  }).join('') || '<div style="color:#999;padding:20px;text-align:center;">Geen VvEs gevonden</div>';
+
+  document.getElementById('flyer-buurt-btn').style.display = 'none';
   flyerNaarStap(3);
+}
+
+function flyerKiesBuurtDeel(idx) {
+  flyerGekozeBuurtItem = _flyerBuurtItems[idx];
+  flyerGeselecteerdeBuurten = [flyerGekozeBuurtItem.buurt];
+  flyerNaarStap(4);
 }
 
 function flyerBuurtToggle(cb) {
@@ -1603,72 +1630,42 @@ function flyerKiesFlyer(type, el) {
 }
 
 function flyerBouwRoute() {
-  const vves = alleData.filter(d => !d.klant && d.lat && d.lng && flyerGeselecteerdeBuurten.includes(d.buurt) &&
-    (flyerType==='basic' ? d.totaal < 50 : d.totaal >= 50));
-  // Sorteer met nearest-neighbor vanuit centroid van geselecteerde buurten
+  const vves = flyerGekozeBuurtItem
+    ? flyerGekozeBuurtItem.vves
+    : alleData.filter(d => !d.klant && d.lat && d.lng && flyerGeselecteerdeBuurten.includes(d.buurt) &&
+        (flyerType==='basic' ? d.totaal < 50 : d.totaal >= 50));
+  if (!vves.length) return;
   const centLat = vves.reduce((s,d)=>s+d.lat,0)/vves.length;
   const centLng = vves.reduce((s,d)=>s+d.lng,0)/vves.length;
-  const resterend = [...vves];
-  flyerHuidigeRoute = [];
-  let huidig = {lat:centLat, lng:centLng};
-  // GPS positie gebruiken als startpunt indien beschikbaar
+  let start = {lat:centLat, lng:centLng};
   if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(pos => {
-      huidig = {lat:pos.coords.latitude, lng:pos.coords.longitude};
-      flyerSorteerRoute(resterend, huidig);
-    }, () => flyerSorteerRoute(resterend, huidig));
-  } else { flyerSorteerRoute(resterend, huidig); }
-}
-
-function flyerSorteerNearestNeighbor(vves, start) {
-  const resterend = [...vves];
-  const route = [];
-  let huidig = start;
-  while(resterend.length) {
-    let idx=0, minD=Infinity;
-    resterend.forEach((d,i)=>{ const dist=afstand(huidig.lat,huidig.lng,d.lat,d.lng); if(dist<minD){minD=dist;idx=i;} });
-    huidig = resterend.splice(idx,1)[0];
-    route.push(huidig);
-  }
-  return route;
+    navigator.geolocation.getCurrentPosition(
+      pos => flyerSorteerRoute(vves, {lat:pos.coords.latitude, lng:pos.coords.longitude}),
+      () => flyerSorteerRoute(vves, start)
+    );
+  } else { flyerSorteerRoute(vves, start); }
 }
 
 function flyerSorteerRoute(vves, start) {
-  const volledigeRoute = flyerSorteerNearestNeighbor(vves, start);
-  const n = volledigeRoute.length;
-  const k = Math.min(4, Math.ceil(n / 25));
-
-  if (k > 1) {
-    // Geografisch splitsen met k-means
-    const assignments = kMeansCluster(volledigeRoute, k);
-    flyerDelen = Array.from({length: k}, () => []);
-    volledigeRoute.forEach((d, i) => flyerDelen[assignments[i]].push(d));
-    // Sorteer elk deel intern met nearest-neighbor
-    flyerDelen = flyerDelen.map(deel => flyerSorteerNearestNeighbor(deel, start));
-    flyerHuidigDeel = null;
-    flyerHuidigeRoute = volledigeRoute;
-  } else {
-    flyerDelen = null;
-    flyerHuidigDeel = 0;
-    flyerHuidigeRoute = volledigeRoute;
+  const resterend = [...vves];
+  flyerHuidigeRoute = [];
+  let huidig = start;
+  while (resterend.length) {
+    let idx=0, minD=Infinity;
+    resterend.forEach((d,i) => { const dist=afstand(huidig.lat,huidig.lng,d.lat,d.lng); if(dist<minD){minD=dist;idx=i;} });
+    huidig = resterend.splice(idx,1)[0];
+    flyerHuidigeRoute.push(huidig);
   }
-
+  flyerDelen = null;
+  flyerHuidigDeel = 0;
   flyerSessieStart = Date.now();
   flyerNaarStap(5);
   flyerToonRoute();
+  vraagPushToestemming();
   if (window.innerWidth <= 600) {
     document.getElementById('flyer-panel').style.display = 'none';
     flyerNavToonStop();
   }
-}
-
-function flyerKiesDeel(deelIdx) {
-  flyerHuidigDeel = deelIdx;
-  flyerHuidigeRoute = flyerDelen[deelIdx];
-  flyerSessieStart = Date.now();
-  flyerToonRoute();
-  applyFilters();
-  vraagPushToestemming();
 }
 
 function getFlyerAdresInfo(d) {
@@ -1711,33 +1708,14 @@ function flyerMarkeerGedaan(kvk, idx) {
 function flyerToonRoute() {
   const buurtenStr = [...new Set(flyerGeselecteerdeBuurten)].join(', ');
 
-  // Toon deel-selector als er meerdere delen zijn en nog geen deel gekozen
-  if (flyerDelen && flyerHuidigDeel === null) {
-    document.getElementById('flyer-route-badge').textContent = flyerDelen.length + ' delen';
-    document.getElementById('flyer-route-badge').style.background = '#1d7a6e';
-    document.getElementById('flyer-route-info').innerHTML = `<strong>${flyerGekozeneFlyer} flyer</strong> · ${flyerType==='basic'?'Basic':'Premium'} · ${buurtenStr}`;
-    document.getElementById('flyer-route-lijst').innerHTML = `
-      <div style="font-size:13px;color:#666;margin-bottom:14px;">Deze buurt is groot — kies welk deel je vandaag doet:</div>
-      ${flyerDelen.map((deel, i) => {
-        const gedaan = deel.filter(d => flyerData[String(d.kvk)]?.bezoek1).length;
-        const klaar = gedaan === deel.length;
-        return `<button onclick="flyerKiesDeel(${i})" style="width:100%;padding:16px;border-radius:14px;border:2px solid ${klaar?'#27ae60':'#e0e0e0'};background:${klaar?'#f0fff4':'#fff'};cursor:pointer;margin-bottom:10px;text-align:left;">
-          <div style="font-size:16px;font-weight:800;color:${klaar?'#27ae60':'#222'};">Deel ${i+1} ${klaar?'✓':''}</div>
-          <div style="font-size:12px;color:#888;margin-top:3px;">${deel.length} VvEs · ${gedaan > 0 ? gedaan+' gedaan' : 'Nog niet gestart'}</div>
-        </button>`;
-      }).join('')}`;
-    return;
-  }
-
   const zichtbaar = flyerHuidigeRoute.filter(d => !flyerData[String(d.kvk)]?.bezoek1);
   const n = flyerHuidigeRoute.length;
   const gedaanCount = n - zichtbaar.length;
   const badge = document.getElementById('flyer-route-badge');
   badge.textContent = gedaanCount + ' / ' + n + ' gedaan';
   badge.style.background = gedaanCount === n ? '#27ae60' : gedaanCount > 0 ? '#f59500' : '#1d7a6e';
-  document.getElementById('flyer-route-info').innerHTML = `
-    <strong>${flyerGekozeneFlyer} flyer</strong> · ${flyerType==='basic'?'Basic':'Premium'} · ${buurtenStr}
-    ${flyerDelen ? ` · <span style="color:#1d7a6e;cursor:pointer;font-weight:700;" onclick="flyerHuidigDeel=null;flyerHuidigeRoute=flyerDelen.flat();flyerToonRoute();">← Alle delen</span>` : ''}`;
+  const deelLabel = flyerGekozeBuurtItem?.totaalDelen > 1 ? ` · deel ${flyerGekozeBuurtItem.deelNr}/${flyerGekozeBuurtItem.totaalDelen}` : '';
+  document.getElementById('flyer-route-info').innerHTML = `<strong>${flyerGekozeneFlyer} flyer</strong> · ${flyerType==='basic'?'Basic':'Premium'} · ${buurtenStr}${deelLabel}`;
   document.getElementById('flyer-route-lijst').innerHTML = zichtbaar.map((d,i)=>{
     const fd = flyerData[String(d.kvk)];
     const b1=fd?.bezoek1, b2=fd?.bezoek2, b3=fd?.bezoek3;
@@ -1815,9 +1793,9 @@ function flyerOpslaanTijd() {
     Object.fromEntries(Object.entries(flyerData).filter(([k])=>!flyerDataInit?.[k] || JSON.stringify(flyerData[k])!==JSON.stringify(flyerDataInit[k])))
   ));
   // Sla herinnering op voor dit deel
-  const buurtNaam = [...new Set(flyerGeselecteerdeBuurten)].join(', ');
-  const deelNr = (flyerHuidigDeel !== null ? flyerHuidigDeel + 1 : 1);
-  const totaalDelen = flyerDelen ? flyerDelen.length : 1;
+  const buurtNaam = flyerGekozeBuurtItem?.buurt || [...new Set(flyerGeselecteerdeBuurten)].join(', ');
+  const deelNr = flyerGekozeBuurtItem?.deelNr || 1;
+  const totaalDelen = flyerGekozeBuurtItem?.totaalDelen || 1;
   slaReminderOp(buurtNaam, deelNr, totaalDelen);
   sluitFlyerPanel();
   applyFilters();
