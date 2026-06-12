@@ -938,40 +938,25 @@ async function highlightGebouwen(d) {
   };
   const isWay = e => e.type === 'way' && Array.isArray(e.geometry) && e.geometry.length >= 3;
 
-  const overpassQuery = async (endpoint) => {
-    const nrPat = nrs.slice(0, 60).join('|');
-    const q = `[out:json][timeout:25];(way["building"]["addr:housenumber"~"^(${nrPat})"](around:${radius*2},${lat},${lng});way["building"](around:${radius},${lat},${lng}););out geom tags;`;
-    const resp = await fetch(endpoint, {method:'POST', body:'data='+encodeURIComponent(q)});
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    return (await resp.json()).elements || [];
-  };
-
   try {
-    let elements = [];
-    try {
-      elements = await overpassQuery('https://overpass.kumi.systems/api/interpreter');
-    } catch(e1) {
-      _gebouwStatus('⚠️ Backup server...');
-      elements = await overpassQuery('https://overpass.openstreetmap.ru/api/interpreter');
-    }
-
-    const all = elements.filter(isWay);
-    const matched = all.filter(e => {
-      const hn = e.tags?.['addr:housenumber'] || '';
-      return nrs.some(n => hn === n || hn.startsWith(n+'-') || hn.startsWith(n+'A') || hn.startsWith(n+'B'));
-    });
-    const toShow = matched.length > 0 ? matched : all;
-    const features = toShow.map(toFeature);
+    // PDOK BAG WFS — officiële Nederlandse gebouwenregistratie, gratis, CORS OK
+    const delta = Math.max(0.001, Math.min(nrs.length * 0.00008, 0.003));
+    const bbox = `${lng-delta},${lat-delta},${lng+delta},${lat+delta}`;
+    const url = `https://service.pdok.nl/lv/bag/wfs/v2_0?service=WFS&version=2.0.0&request=GetFeature&typeName=bag:pand&bbox=${bbox},EPSG:4326&outputFormat=application/json&srsName=EPSG:4326&count=100`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('PDOK HTTP ' + resp.status);
+    const geojson = await resp.json();
+    const features = (geojson.features || []).filter(f => f.geometry);
 
     if (features.length > 0) {
       vveGebouwFeatures = {type:'FeatureCollection', features, premium: d.totaal >= 50};
       _gebouwStatus('');
       applyFilters();
     } else {
-      _gebouwStatus('⚠️ Geen gebouwdata gevonden');
+      _gebouwStatus('⚠️ Geen gebouwen gevonden');
     }
   } catch(e) {
-    _gebouwStatus('❌ Fout: ' + e.message);
+    _gebouwStatus('❌ ' + e.message);
     console.error('highlightGebouwen:', e);
   }
 }
