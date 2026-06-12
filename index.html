@@ -568,6 +568,52 @@ let recenteZoekopdrachten = JSON.parse(localStorage.getItem('vve_recent') || '[]
 // flyerDataInit uit flyer_data.js, aangevuld met localStorage (localStorage wint)
 let flyerData = Object.assign({}, typeof flyerDataInit!=='undefined' ? flyerDataInit : {}, JSON.parse(localStorage.getItem('vve_flyer') || '{}'));
 let flyerModus = false;
+
+// ── GitHub sync voor flyerData ────────────────────────────────────────────
+const _GH_TOKEN = atob('Z2l0aHViX3BhdF8xMUNGMkJLSFEwSzB4NUdPVHJ6cHZ6X282a1ZuSGN5R3B3ZHB6SEpBeEJTeUtNOHk2TWpzYm9qOUxBbzJqbFVqZG9ET000WDMyWmpGcFVCUjI=');
+const _GH_REPO = 'rafikocak20082008-beep/kaartrgabdyy56';
+const _GH_SYNC_FILE = 'flyer_sync.js';
+
+async function laadFlyerSync() {
+  try {
+    const r = await fetch(`https://raw.githubusercontent.com/${_GH_REPO}/main/${_GH_SYNC_FILE}?t=` + Date.now());
+    if (!r.ok) return;
+    const text = await r.text();
+    const match = text.match(/const flyerSync\s*=\s*(\{[\s\S]*\});/);
+    if (!match) return;
+    const sync = JSON.parse(match[1]);
+    let changed = false;
+    Object.entries(sync).forEach(([k, v]) => {
+      if (JSON.stringify(flyerData[k] || null) !== JSON.stringify(v)) { flyerData[k] = v; changed = true; }
+    });
+    if (changed) {
+      localStorage.setItem('vve_flyer', JSON.stringify(
+        Object.fromEntries(Object.entries(flyerData).filter(([k]) => !flyerDataInit?.[k] || JSON.stringify(flyerData[k]) !== JSON.stringify(flyerDataInit[k])))
+      ));
+      applyFilters();
+    }
+  } catch(e) { console.warn('laadFlyerSync:', e); }
+}
+
+async function syncFlyerNaarGitHub() {
+  try {
+    const syncData = Object.fromEntries(
+      Object.entries(flyerData).filter(([k]) => !flyerDataInit?.[k] || JSON.stringify(flyerData[k]) !== JSON.stringify(flyerDataInit[k]))
+    );
+    const content = 'const flyerSync = ' + JSON.stringify(syncData) + ';';
+    const b64 = btoa(unescape(encodeURIComponent(content)));
+    const metaResp = await fetch(`https://api.github.com/repos/${_GH_REPO}/contents/${_GH_SYNC_FILE}`, {
+      headers: { Authorization: `Bearer ${_GH_TOKEN}` }
+    });
+    const body = { message: 'sync flyer', content: b64 };
+    if (metaResp.ok) { const meta = await metaResp.json(); body.sha = meta.sha; }
+    await fetch(`https://api.github.com/repos/${_GH_REPO}/contents/${_GH_SYNC_FILE}`, {
+      method: 'PUT', headers: { Authorization: `Bearer ${_GH_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+  } catch(e) { console.warn('syncFlyerNaarGitHub:', e); }
+}
+// ─────────────────────────────────────────────────────────────────────────
 let filters = { type: 'all', minApp: 0, maxApp: 2000, beheerder: '', stadsdeel: '', status: '', klant: 'all' };
 
 // Data wordt extern geladen
@@ -1701,6 +1747,10 @@ function flyerMarkeerGedaan(kvk, idx) {
   if (!fd.bezoek1) fd.bezoek1 = nieuw;
   else if (!fd.bezoek2) fd.bezoek2 = nieuw;
   else if (!fd.bezoek3) fd.bezoek3 = nieuw;
+  localStorage.setItem('vve_flyer', JSON.stringify(
+    Object.fromEntries(Object.entries(flyerData).filter(([k]) => !flyerDataInit?.[k] || JSON.stringify(flyerData[k]) !== JSON.stringify(flyerDataInit[k])))
+  ));
+  syncFlyerNaarGitHub();
   flyerToonRoute();
   applyFilters();
 }
@@ -2131,6 +2181,7 @@ function exportFlyerRoute() {
 
 applyFilters();
 checkReminders();
+laadFlyerSync();
 
 // Service Worker registreren voor PWA
 if ('serviceWorker' in navigator) {
