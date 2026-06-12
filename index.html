@@ -935,28 +935,32 @@ async function highlightGebouwen(d) {
   _gebouwStatus('🔍 Gebouwen laden...');
   deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
 
-  try {
-    // Stap 1: zoek exact adres op via PDOK Locatieserver → centroide in RD
-    const q = encodeURIComponent(`${d.straat} ${d.nr} Amsterdam`);
-    const lsResp = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${q}&fq=type:adres&rows=1`);
-    let rdX, rdY;
-    if (lsResp.ok) {
-      const ls = await lsResp.json();
-      const doc = ls?.response?.docs?.[0];
-      const m = doc?.centroide_rd?.match(/POINT\((\S+)\s+(\S+)\)/);
-      if (m) { rdX = parseFloat(m[1]); rdY = parseFloat(m[2]); }
-    }
-    // Fallback: converteer d.lat/d.lng naar RD
-    if (!rdX) { const rd = wgs84NaarRD(d.lat, d.lng); rdX = rd.x; rdY = rd.y; }
+  const nrs = parseAdresReeks(d);
+  // Sample max 4 huisnummers verspreid over de reeks
+  const stap = Math.max(1, Math.floor(nrs.length / 4));
+  const sample = [...new Set([nrs[0], nrs[stap], nrs[stap*2], nrs[nrs.length-1]].filter(Boolean))];
 
-    // Stap 2: haal pand op met kleine bbox (60m) → slechts 1 of 2 gebouwen
-    const r = 60;
-    const bbox = `${rdX-r},${rdY-r},${rdX+r},${rdY+r}`;
-    const url = `https://service.pdok.nl/lv/bag/wfs/v2_0?service=WFS&version=2.0.0&request=GetFeature&typeName=bag:pand&bbox=${bbox}&outputFormat=application/json&srsName=EPSG:4326&count=20`;
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const geojson = await resp.json();
-    const features = (geojson.features || []).filter(f => f.geometry);
+  const getPandVoorNr = async (nr) => {
+    const q = encodeURIComponent(`${d.straat} ${nr} Amsterdam`);
+    const ls = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${q}&fq=type:adres&rows=1`);
+    if (!ls.ok) return null;
+    const doc = (await ls.json())?.response?.docs?.[0];
+    const m = doc?.centroide_rd?.match(/POINT\((\S+)\s+(\S+)\)/);
+    if (!m) return null;
+    const filter = encodeURIComponent(`CONTAINS(geometrie,POINT(${m[1]} ${m[2]}))`);
+    const wfs = await fetch(`https://service.pdok.nl/lv/bag/wfs/v2_0?service=WFS&version=2.0.0&request=GetFeature&typeName=bag:pand&outputFormat=application/json&srsName=EPSG:4326&CQL_FILTER=${filter}&count=1`);
+    if (!wfs.ok) return null;
+    return (await wfs.json())?.features?.[0] || null;
+  };
+
+  try {
+    const results = await Promise.all(sample.map(getPandVoorNr));
+    const pandIds = new Set();
+    const features = results.filter(Boolean).filter(f => {
+      const id = f.properties?.identificatie;
+      if (!id || pandIds.has(id)) return false;
+      pandIds.add(id); return true;
+    });
 
     if (features.length > 0) {
       vveGebouwFeatures = {type:'FeatureCollection', features, premium: d.totaal >= 50};
