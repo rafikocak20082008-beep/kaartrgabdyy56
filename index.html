@@ -1571,32 +1571,79 @@ function flyerSorteerRoute(vves, start) {
   }
 }
 
+function getFlyerAdresInfo(d) {
+  const naam = d.naam.replace(/ TE [A-Z\s]+$/i, '');
+  const isOneven = /ONEVEN/i.test(naam);
+  const isEven = /\bEVEN\b/i.test(naam) && !isOneven;
+  const nrs = parseAdresReeks(d);
+  let badge = null, badgeKleur = '#888';
+  if (isOneven) { badge = 'ONEVEN'; badgeKleur = '#e67e22'; }
+  else if (isEven) { badge = 'EVEN'; badgeKleur = '#3498db'; }
+  else if (nrs.length > 1 && nrs.length <= 30 && nrs[1] && parseInt(nrs[1]) - parseInt(nrs[0]) === 2) { badge = 'ONEVEN/EVEN'; badgeKleur = '#8e44ad'; }
+  let nrDisplay;
+  if (nrs.length === 1) {
+    nrDisplay = nrs[0];
+  } else if (nrs.length <= 10) {
+    nrDisplay = nrs.join(' · ');
+  } else {
+    const step = parseInt(nrs[1]||nrs[0]) - parseInt(nrs[0]);
+    const suffix = step === 2 ? (isOneven ? ' (oneven)' : ' (even)') : '';
+    nrDisplay = nrs[0] + ' – ' + nrs[nrs.length-1] + suffix;
+  }
+  return { badge, badgeKleur, nrDisplay };
+}
+
+function flyerMarkeerGedaan(kvk, idx) {
+  const d = alleData[idx];
+  if (!d) return;
+  const kvkStr = String(kvk);
+  if (!flyerData[kvkStr]) flyerData[kvkStr] = {};
+  const fd = flyerData[kvkStr];
+  const datum = new Date().toISOString().split('T')[0];
+  const nieuw = {datum, flyer: flyerGekozeneFlyer, duur: 0};
+  if (!fd.bezoek1) fd.bezoek1 = nieuw;
+  else if (!fd.bezoek2) fd.bezoek2 = nieuw;
+  else if (!fd.bezoek3) fd.bezoek3 = nieuw;
+  flyerToonRoute();
+  applyFilters();
+}
+
 function flyerToonRoute() {
   const n = flyerHuidigeRoute.length;
-  document.getElementById('flyer-route-badge').textContent = n + ' VvEs';
+  const gedaanCount = flyerHuidigeRoute.filter(d => flyerData[String(d.kvk)]?.bezoek1).length;
+  const badge = document.getElementById('flyer-route-badge');
+  badge.textContent = gedaanCount + ' / ' + n + ' gedaan';
+  badge.style.background = gedaanCount === n ? '#27ae60' : gedaanCount > 0 ? '#f59500' : '#1d7a6e';
   const buurtenStr = [...new Set(flyerGeselecteerdeBuurten)].join(', ');
   document.getElementById('flyer-route-info').innerHTML = `<strong>${flyerGekozeneFlyer} flyer</strong> · ${flyerType==='basic'?'Basic':'Premium'} · ${buurtenStr}`;
-  const dag = 1000*60*60*24;
   document.getElementById('flyer-route-lijst').innerHTML = flyerHuidigeRoute.map((d,i)=>{
     const fd = flyerData[String(d.kvk)];
     const b1=fd?.bezoek1, b2=fd?.bezoek2, b3=fd?.bezoek3;
     const bezoekNum = b3?3:b2?2:b1?1:0;
     const volgend = bezoekNum+1;
+    const gedaan = !!b1;
     const kleur = getFlyerKleurStatus(d);
     const kleurHex = {oranje:'#f59500',groen:'#27ae60',blauw:'#3498db',rood:'#e74c3c',geel:'#f5c542',grijs:'#bbb'}[kleur]||'#bbb';
-    const gedaanFlyersTxt = [b1,b2,b3].filter(Boolean).map(b=>b.flyer).join(' → ');
-    return `<div onclick="flyerPuntKlik(${alleData.indexOf(d)})" style="background:#fff;border-radius:16px;padding:14px 16px;margin-bottom:10px;cursor:pointer;border-left:5px solid ${kleurHex};box-shadow:0 2px 8px rgba(0,0,0,0.07);">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="font-size:22px;font-weight:900;color:${kleurHex};min-width:30px;text-align:center;">${i+1}</div>
+    const {badge: adresBadge, badgeKleur, nrDisplay} = getFlyerAdresInfo(d);
+    const mapsUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(d.straat+' '+d.nr+', '+d.postcode+' '+d.gemeente);
+    const idx = alleData.indexOf(d);
+    return `<div style="background:${gedaan?'#f8f8f8':'#fff'};border-radius:16px;padding:14px 16px;margin-bottom:10px;border-left:5px solid ${gedaan?'#ccc':kleurHex};box-shadow:0 2px 8px rgba(0,0,0,0.06);opacity:${gedaan?'0.7':'1'};">
+      <div style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:10px;" onclick="flyerPuntKlik(${idx})">
+        <div style="font-size:20px;font-weight:900;color:${gedaan?'#bbb':kleurHex};min-width:26px;margin-top:2px;">${i+1}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;">${d.straat}</div>
-          <div style="font-size:24px;font-weight:900;color:#111;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${getAdresRange(d)}</div>
-          <div style="font-size:11px;color:#999;margin-top:3px;">${d.postcode} · ${d.app} app.</div>
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:2px;">
+            <span style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.8px;">${d.straat}</span>
+            ${adresBadge?`<span style="background:${badgeKleur};color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;">${adresBadge}</span>`:''}
+          </div>
+          <div style="font-size:${nrDisplay.length>22?'14':'20'}px;font-weight:900;color:${gedaan?'#bbb':'#111'};${gedaan?'text-decoration:line-through;':''}line-height:1.2;margin-bottom:3px;">${nrDisplay}</div>
+          <div style="font-size:11px;color:#bbb;">${d.postcode} · ${d.app} app.</div>
         </div>
-        <div style="text-align:center;background:${kleurHex}22;border-radius:10px;padding:6px 10px;min-width:44px;">
-          <div style="font-size:9px;color:${kleurHex};font-weight:700;text-transform:uppercase;">bezoek</div>
-          <div style="font-size:22px;font-weight:900;color:${kleurHex};line-height:1.1;">${volgend}</div>
-        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="flyerMarkeerGedaan('${d.kvk}',${idx})" style="flex:1;padding:11px;border-radius:11px;border:none;background:${gedaan?'#e8f5e9':'#1d7a6e'};color:${gedaan?'#27ae60':'#fff'};font-size:13px;font-weight:700;cursor:pointer;">
+          ${gedaan?'✓ Geflyerd':'✓ Markeer geflyerd'}
+        </button>
+        <a href="${mapsUrl}" target="_blank" style="padding:11px 14px;border-radius:11px;border:1.5px solid #e0e0e0;background:#fff;font-size:16px;text-decoration:none;display:flex;align-items:center;">📍</a>
       </div>
     </div>`;
   }).join('');
