@@ -869,54 +869,46 @@ async function highlightGebouwen(d) {
   deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
 
   const nrs = parseAdresReeks(d);
+  const lat = d.lat, lng = d.lng;
 
-  // Geocodeer eerste + laatste huisnummer om straat-lijn te bepalen
-  let p1 = [d.lng, d.lat], p2 = [d.lng, d.lat];
-  if (nrs.length >= 2) {
-    const [c1, c2] = await Promise.all([
-      geocodeerPunt(d.straat, nrs[0], d.gemeente),
-      new Promise(res => setTimeout(async () => res(await geocodeerPunt(d.straat, nrs[nrs.length-1], d.gemeente)), 1100))
-    ]);
-    if (c1) p1 = c1;
-    if (c2) p2 = c2;
-  }
+  // Radius in meters: groter naarmate meer adressen in de reeks
+  const radiusM = Math.max(50, Math.min(nrs.length * 9, 300));
 
-  // Ruime bbox rond de straat-lijn
-  const pad = 0.0007;
-  const minLat = Math.min(p1[1], p2[1]) - pad;
-  const maxLat = Math.max(p1[1], p2[1]) + pad;
-  const minLng = Math.min(p1[0], p2[0]) - pad;
-  const maxLng = Math.max(p1[0], p2[0]) + pad;
+  const toWayFeature = way => {
+    const coords = way.geometry.map(p => [p.lon, p.lat]);
+    if (coords[0][0] !== coords[coords.length-1][0] || coords[0][1] !== coords[coords.length-1][1]) coords.push(coords[0]);
+    return {type:'Feature', properties:{}, geometry:{type:'Polygon', coordinates:[coords]}};
+  };
+  const validWays = e => e.type === 'way' && e.geometry && e.geometry.length >= 3;
 
-  const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
-  const query = `[out:json][timeout:20];way["building"](${bbox});out geom;`;
   try {
-    const resp = await fetch('https://overpass-api.de/api/interpreter', {
-      method:'POST', body:'data='+encodeURIComponent(query)
-    });
-    const json = await resp.json();
+    let elements = [];
 
-    // Filter: alleen gebouwen waarvan het middelpunt binnen ~40m van de straat-lijn valt
-    const maxDist = 0.00042;
-    const features = (json.elements||[])
-      .filter(e => e.type==='way' && e.geometry && e.geometry.length >= 3)
-      .filter(e => {
-        const lats = e.geometry.map(p => p.lat);
-        const lons = e.geometry.map(p => p.lon);
-        const cLat = lats.reduce((a,b) => a+b) / lats.length;
-        const cLon = lons.reduce((a,b) => a+b) / lons.length;
-        return distTotLijnstuk(cLon, cLat, p1[0], p1[1], p2[0], p2[1]) < maxDist;
-      })
-      .map(way => {
-        const coords = way.geometry.map(p => [p.lon, p.lat]);
-        if (coords[0][0] !== coords[coords.length-1][0] || coords[0][1] !== coords[coords.length-1][1]) coords.push(coords[0]);
-        return {type:'Feature', properties:{}, geometry:{type:'Polygon', coordinates:[coords]}};
-      });
+    // Poging 1: gebouwen met exact matching huisnummer in de buurt
+    if (nrs.length <= 30) {
+      const nrPat = nrs.join('|');
+      const q1 = `[out:json][timeout:15];(way["addr:housenumber"~"^(${nrPat})$"](around:${radiusM * 2},${lat},${lng});node["addr:housenumber"~"^(${nrPat})$"](around:${radiusM * 2},${lat},${lng}););out geom;`;
+      const r1 = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', body:'data='+encodeURIComponent(q1)});
+      const j1 = await r1.json();
+      elements = (j1.elements||[]).filter(validWays);
+    }
+
+    // Poging 2 (fallback): alle gebouwen binnen radius van VvE-punt
+    if (elements.length === 0) {
+      const q2 = `[out:json][timeout:15];way["building"](around:${radiusM},${lat},${lng});out geom;`;
+      const r2 = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', body:'data='+encodeURIComponent(q2)});
+      const j2 = await r2.json();
+      elements = (j2.elements||[]).filter(validWays);
+    }
+
+    const features = elements.map(toWayFeature);
     if (features.length > 0) {
       vveGebouwFeatures = {type:'FeatureCollection', features, premium: d.totaal >= 50};
       applyFilters();
+    } else {
+      console.warn('Geen gebouwen gevonden voor', d.naam, 'radius:', radiusM, 'nrs:', nrs);
     }
-  } catch(e) {}
+  } catch(e) { console.error('highlightGebouwen:', e); }
 }
 
 function clearGebouwHighlight() {
