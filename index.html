@@ -1125,7 +1125,7 @@ function toonKeuzeMenu(vves, lat, lng) {
       onmouseover="this.style.borderColor='#1d7a6e';this.style.background='#f0faf9'"
       onmouseout="this.style.borderColor='#f0f0f0';this.style.background='#fff'">
       <div style="font-size:12px;font-weight:700;color:#222;margin-bottom:2px;">${v.naam.substring(0,45)}${v.naam.length>45?'...':''}</div>
-      <div style="font-size:11px;color:#999;">${v.app} app — ${totaalFuncties(v)>=50?'Premium':'Basic'}</div>
+      <div style="font-size:11px;color:#999;">${v.app>0?v.app+' app':v.parkeerplaatsen>0?v.parkeerplaatsen+' parkeerplaatsen':v.kantoren>0?v.kantoren+' kantoren':v.winkels>0?v.winkels+' winkels':'—'} — ${totaalFuncties(v)>=50?'Premium':'Basic'}</div>
     </div>
   `).join('');
 
