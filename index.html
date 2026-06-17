@@ -385,7 +385,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 
 <div id="sidebar">
   <div id="sidebar-img">
-    <button id="sidebar-close" onclick="document.getElementById('sidebar').classList.remove('open');document.getElementById('stats').style.display='';clearGebouwHighlight();">‹</button>
+    <button id="sidebar-close" onclick="document.getElementById('sidebar').classList.remove('open');document.getElementById('stats').style.display='';document.getElementById('search-bar').style.display='';document.getElementById('legenda').style.display='';clearGebouwHighlight();">‹</button>
     <svg width="60" height="60" viewBox="0 0 100 100" fill="none" opacity="0.6">
       <rect x="18" y="32" width="26" height="52" rx="3" fill="#f5a623"/>
       <rect x="54" y="16" width="26" height="68" rx="3" fill="#f5a623"/>
@@ -963,6 +963,9 @@ function openSidebar(d){
   deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
   document.getElementById('sidebar').classList.add('open');
   document.getElementById('stats').style.display='none';
+  document.getElementById('search-bar').style.display='none';
+  document.getElementById('legenda').style.display='none';
+  document.getElementById('filter-panel').classList.remove('open');
   document.getElementById('fav-popup').style.display = 'none';
   const km=document.getElementById('keuze-menu'); if(km) km.style.display='none';
   document.getElementById('flyer-sectie').style.display = flyerModus ? 'block' : 'none';
