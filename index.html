@@ -224,20 +224,18 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
     <span style="font-size:13px;color:#333;font-weight:500;">Premium</span>
     <span id="leg-premium" style="margin-left:auto;font-size:12px;font-weight:700;color:#1d7a6e;">—</span>
   </div>
-  <div style="display:flex;align-items:center;gap:8px;">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
     <div style="width:12px;height:12px;border-radius:50%;background:#f5a623;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.2);flex-shrink:0;"></div>
     <span style="font-size:13px;color:#333;font-weight:500;">VVEgemak klant</span>
     <span id="leg-klant" style="margin-left:auto;font-size:12px;font-weight:700;color:#f5a623;">—</span>
   </div>
+  <div style="border-top:1px solid #eee;margin:8px 0;"></div>
+  <div style="display:flex;justify-content:space-between;gap:16px;">
+    <div><div style="font-size:9px;color:#888;font-weight:700;text-transform:uppercase;">Totaal</div><div id="s-total" style="font-size:13px;font-weight:700;color:#1d7a6e;">—</div></div>
+    <div><div style="font-size:9px;color:#888;font-weight:700;text-transform:uppercase;">Gefilterd</div><div id="s-visible" style="font-size:13px;font-weight:700;color:#1d7a6e;">—</div></div>
+  </div>
 </div>
 
-<div id="stats">
-  <div class="stat"><div class="stat-label">Totaal VvEs</div><div class="stat-value" id="s-total">—</div></div>
-  <div class="stat"><div class="stat-label">Gefilterd</div><div class="stat-value" id="s-visible">—</div></div>
-  <div class="stat"><div class="stat-label">Premium</div><div class="stat-value" id="s-premium">—</div></div>
-  <div class="stat"><div class="stat-label">Basic</div><div class="stat-value" id="s-basic">—</div></div>
-  <div class="stat"><div class="stat-label">Klanten</div><div class="stat-value" id="s-klant" style="color:#f5a623;">—</div></div>
-</div>
 
 <!-- Mobile flyer klaar-knop -->
 <div id="flyer-nav-card" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:900;padding:16px;pointer-events:none;">
@@ -385,7 +383,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 
 <div id="sidebar">
   <div id="sidebar-img">
-    <button id="sidebar-close" onclick="document.getElementById('sidebar').classList.remove('open');document.getElementById('stats').style.display='';document.getElementById('search-bar').style.display='';document.getElementById('legenda').style.display='';clearGebouwHighlight();">‹</button>
+    <button id="sidebar-close" onclick="document.getElementById('sidebar').classList.remove('open');document.getElementById('search-bar').style.display='';document.getElementById('legenda').style.display='';clearGebouwHighlight();">‹</button>
     <svg width="60" height="60" viewBox="0 0 100 100" fill="none" opacity="0.6">
       <rect x="18" y="32" width="26" height="52" rx="3" fill="#f5a623"/>
       <rect x="54" y="16" width="26" height="68" rx="3" fill="#f5a623"/>
@@ -890,12 +888,9 @@ function applyFilters(){
   }
   document.getElementById('s-total').textContent=alleData.length.toLocaleString('nl');
   document.getElementById('s-visible').textContent=gefilterd.length.toLocaleString('nl');
-  document.getElementById('s-premium').textContent=nPremium.toLocaleString('nl');
-  document.getElementById('s-basic').textContent=nBasic.toLocaleString('nl');
   document.getElementById('leg-premium').textContent=nPremium.toLocaleString('nl');
   document.getElementById('leg-basic').textContent=nBasic.toLocaleString('nl');
   document.getElementById('leg-klant').textContent=nKlant.toLocaleString('nl');
-  document.getElementById('s-klant').textContent=nKlant.toLocaleString('nl');
   // In stap 5 (flyeren): toon alleen de route-VvEs op de kaart
   const teRenderen = (flyerModus && flyerHuidigeStap === 5 && flyerHuidigeRoute.length > 0)
     ? flyerHuidigeRoute
@@ -962,8 +957,7 @@ function openSidebar(d){
   geselecteerdeVvE = d;
   deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
   document.getElementById('sidebar').classList.add('open');
-  document.getElementById('stats').style.display='none';
-  document.getElementById('search-bar').style.display='none';
+    document.getElementById('search-bar').style.display='none';
   document.getElementById('legenda').style.display='none';
   document.getElementById('filter-panel').classList.remove('open');
   document.getElementById('fav-popup').style.display = 'none';
@@ -2049,7 +2043,6 @@ function _openFlyerModus() {
   document.getElementById('header-logo').style.display = 'none';
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('top-btns').style.display = 'none';
-  document.getElementById('stats').style.display = 'none';
   document.getElementById('legenda').style.display = 'none';
   document.getElementById('search-bar').style.display = 'none';
   startGPS();
@@ -2069,7 +2062,6 @@ function toggleFlyerModus() {
     document.getElementById('header-logo').style.display = '';
     flyerStartpunt = null;
     document.getElementById('top-btns').style.display = '';
-    document.getElementById('stats').style.display = '';
     document.getElementById('legenda').style.display = '';
     document.getElementById('search-bar').style.display = '';
     stopGPS();
