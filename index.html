@@ -73,7 +73,9 @@ body { font-family: Arial, sans-serif; height: 100vh; overflow: hidden; position
 .filter-label { font-size: 11px; font-weight: 700; color: #1d7a6e; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
 .type-toggle { display: flex; gap: 8px; }
 .type-btn { flex: 1; padding: 10px 8px; border-radius: 10px; border: 1.5px solid #e8e8e8; background: #fff; font-size: 13px; cursor: pointer; text-align: center; font-weight: 600; color: #444; }
-.type-btn.active { background: #1d7a6e; color: #fff; border-color: #1d7a6e; }
+.type-btn.active { background: #fff; color: #1d7a6e; border-color: #1d7a6e; font-weight: 800; }
+.type-btn.active-basic { background: #fff; color: #7bc67e; border-color: #7bc67e; font-weight: 800; }
+.type-btn.active-klant { background: #fff; color: #f5a623; border-color: #f5a623; font-weight: 800; }
 .intern-btn { padding: 8px 14px; border-radius: 20px; border: 1.5px solid #e8e8e8; background: #fff; font-size: 13px; cursor: pointer; font-weight: 600; color: #444; transition: all 0.15s; }
 .intern-btn.active { background: #1d7a6e; color: #fff; border-color: #1d7a6e; }
 .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
@@ -849,7 +851,14 @@ function renderLayers(data){
 
 function setKlantFilter(val){
   filters.klant=val;
-  ['all','klant','geen'].forEach(k=>document.getElementById('klant-'+k).classList.toggle('active',k===val));
+  ['all','klant','geen'].forEach(k=>{
+    const el=document.getElementById('klant-'+k);
+    el.classList.remove('active','active-basic','active-klant');
+    if(k===val){
+      if(k==='klant') el.classList.add('active-klant');
+      else el.classList.add('active');
+    }
+  });
   applyFilters();
 }
 
@@ -1291,7 +1300,14 @@ function selectResult(idx){
 function toonRecente(){}
 function setType(type){
   filters.type=type;
-  ['all','basic','premium'].forEach(t=>document.getElementById('type-'+t).classList.toggle('active',t===type));
+  ['all','basic','premium'].forEach(t=>{
+    const el=document.getElementById('type-'+t);
+    el.classList.remove('active','active-basic','active-klant');
+    if(t===type){
+      if(type==='basic') el.classList.add('active-basic');
+      else el.classList.add('active');
+    }
+  });
   applyFilters();
 }
 function setStadsdeel(btn,sd){
