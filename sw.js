@@ -1,4 +1,4 @@
-const CACHE = 'vvegemak-v5';
+const CACHE = 'vvegemak-v6';
 const CORE = [
   '/vve_data.js',
   '/flyer_data.js',
