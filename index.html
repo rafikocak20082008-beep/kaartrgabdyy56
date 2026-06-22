@@ -13,6 +13,23 @@
 <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
 <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyBfQoGYkRdPTcfMkMJPuhHF6qljVgjSoUE",
+  authDomain: "vve-kaart.firebaseapp.com",
+  projectId: "vve-kaart",
+  storageBucket: "vve-kaart.firebasestorage.app",
+  messagingSenderId: "479453038899",
+  appId: "1:479453038899:web:25ad8c12864e8d82acd646"
+});
+const _auth = firebase.auth();
+const _db = firebase.firestore();
+const TOEGESTANE_EMAILS = ['rafikocak2085@gmail.com'];
+let _fbGebruiker = null;
+</script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: Arial, sans-serif; height: 100vh; overflow: hidden; position: relative; }
@@ -182,6 +199,16 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   </div>
 </div>
 
+<div id="login-overlay" style="display:flex;position:fixed;inset:0;z-index:999999;background:#1d7a6e;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+  <img src="icon-192.png" style="width:80px;border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,0.3)">
+  <div style="color:#fff;font-size:24px;font-weight:700;">VVEgemak Kaart</div>
+  <div style="color:rgba(255,255,255,0.8);font-size:14px;">Log in om verder te gaan</div>
+  <button onclick="inloggenMetGoogle()" style="display:flex;align-items:center;gap:10px;padding:14px 28px;border-radius:40px;border:none;background:#fff;color:#1d7a6e;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+    <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z"/></svg>
+    Inloggen met Google
+  </button>
+  <div id="login-fout" style="color:#ffcccc;font-size:13px;display:none;">Je account heeft geen toegang.</div>
+</div>
 <div id="reminder-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99998;background:#e74c3c;color:#fff;padding:12px 16px;font-size:13px;font-weight:600;text-align:center;cursor:pointer;" onclick="this.style.display='none'">⏰ Laad...</div>
 <div id="container"></div>
 <div id="tooltip"><div id="tooltip-name"></div><div id="tooltip-addr"></div></div>
@@ -601,49 +628,52 @@ let recenteZoekopdrachten = JSON.parse(localStorage.getItem('vve_recent') || '[]
 let flyerData = Object.assign({}, typeof flyerDataInit!=='undefined' ? flyerDataInit : {}, JSON.parse(localStorage.getItem('vve_flyer') || '{}'));
 let flyerModus = false;
 
-// ── GitHub sync voor flyerData ────────────────────────────────────────────
-const _GH_TOKEN = atob('Z2l0aHViX3BhdF8xMUNGMkJLSFEwSzB4NUdPVHJ6cHZ6X282a1ZuSGN5R3B3ZHB6SEpBeEJTeUtNOHk2TWpzYm9qOUxBbzJqbFVqZG9ET000WDMyWmpGcFVCUjI=');
-const _GH_REPO = 'rafikocak20082008-beep/kaartrgabdyy56';
-const _GH_SYNC_FILE = 'flyer_sync.js';
-
-async function laadFlyerSync() {
-  try {
-    const r = await fetch(`https://raw.githubusercontent.com/${_GH_REPO}/main/${_GH_SYNC_FILE}?t=` + Date.now());
-    if (!r.ok) return;
-    const text = await r.text();
-    const match = text.match(/const flyerSync\s*=\s*(\{[\s\S]*\});/);
-    if (!match) return;
-    const sync = JSON.parse(match[1]);
-    let changed = false;
-    Object.entries(sync).forEach(([k, v]) => {
-      if (JSON.stringify(flyerData[k] || null) !== JSON.stringify(v)) { flyerData[k] = v; changed = true; }
-    });
-    if (changed) {
-      localStorage.setItem('vve_flyer', JSON.stringify(
-        Object.fromEntries(Object.entries(flyerData).filter(([k]) => !flyerDataInit?.[k] || JSON.stringify(flyerData[k]) !== JSON.stringify(flyerDataInit[k])))
-      ));
-      applyFilters();
-    }
-  } catch(e) { console.warn('laadFlyerSync:', e); }
+// ── Firebase sync voor flyerData ────────────────────────────────────────────
+function inloggenMetGoogle() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  _auth.signInWithPopup(provider).catch(e => console.warn('login fout:', e));
 }
 
-async function syncFlyerNaarGitHub() {
+function uitloggen() {
+  _auth.signOut();
+}
+
+_auth.onAuthStateChanged(user => {
+  if (user && TOEGESTANE_EMAILS.includes(user.email)) {
+    _fbGebruiker = user;
+    document.getElementById('login-overlay').style.display = 'none';
+    laadFlyerSync();
+  } else if (user) {
+    _auth.signOut();
+    document.getElementById('login-fout').style.display = 'block';
+  } else {
+    _fbGebruiker = null;
+    document.getElementById('login-overlay').style.display = 'flex';
+  }
+});
+
+function laadFlyerSync() {
+  _db.collection('flyer').onSnapshot(snap => {
+    let changed = false;
+    snap.forEach(doc => {
+      const v = doc.data();
+      const k = doc.id;
+      if (JSON.stringify(flyerData[k] || null) !== JSON.stringify(v)) {
+        flyerData[k] = v; changed = true;
+      }
+    });
+    if (changed) {
+      localStorage.setItem('vve_flyer', JSON.stringify(flyerData));
+      applyFilters();
+    }
+  });
+}
+
+async function syncFlyerNaarGitHub(kvk, data) {
+  if (!_fbGebruiker) return;
   try {
-    const syncData = Object.fromEntries(
-      Object.entries(flyerData).filter(([k]) => !flyerDataInit?.[k] || JSON.stringify(flyerData[k]) !== JSON.stringify(flyerDataInit[k]))
-    );
-    const content = 'const flyerSync = ' + JSON.stringify(syncData) + ';';
-    const b64 = btoa(unescape(encodeURIComponent(content)));
-    const metaResp = await fetch(`https://api.github.com/repos/${_GH_REPO}/contents/${_GH_SYNC_FILE}`, {
-      headers: { Authorization: `Bearer ${_GH_TOKEN}` }
-    });
-    const body = { message: 'sync flyer', content: b64 };
-    if (metaResp.ok) { const meta = await metaResp.json(); body.sha = meta.sha; }
-    await fetch(`https://api.github.com/repos/${_GH_REPO}/contents/${_GH_SYNC_FILE}`, {
-      method: 'PUT', headers: { Authorization: `Bearer ${_GH_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-  } catch(e) { console.warn('syncFlyerNaarGitHub:', e); }
+    await _db.collection('flyer').doc(String(kvk)).set(data);
+  } catch(e) { console.warn('firebase sync fout:', e); }
 }
 // ─────────────────────────────────────────────────────────────────────────
 let filters = { type: 'all', minApp: 0, maxApp: 2000, beheerder: '', stadsdeel: '', status: '', klant: 'all', internBeheerder: '' };
@@ -1726,25 +1756,43 @@ function flyerSorteerRoute(vves, start) {
   }
 }
 
+function nrsToDisplay(nrs, isOneven, isEven) {
+  if (nrs.length === 0) return '';
+  if (nrs.length === 1) return String(nrs[0]);
+  if (nrs.length <= 10) return nrs.join(' · ');
+  return nrs[0] + ' – ' + nrs[nrs.length-1] + (isOneven ? ' (oneven)' : isEven ? ' (even)' : '');
+}
+
 function getFlyerAdresInfo(d) {
   const naam = d.naam.replace(/ TE [A-Z\s]+$/i, '');
   const isOneven = /ONEVEN/i.test(naam);
   const isEven = /\bEVEN\b/i.test(naam) && !isOneven;
-  // Gebruik BAG nrs als beschikbaar (accuraat), anders parse uit naam
-  const nrs = (d.nrs && d.nrs.length > 0) ? d.nrs.map(String) : parseAdresReeks(d);
+
+  // Meerdere straten via BAG adressen (nieuw formaat)
+  if (d.adressen && Object.keys(d.adressen).length > 1) {
+    const regels = Object.entries(d.adressen).map(([straat, nrs]) =>
+      straat + ' ' + nrsToDisplay(nrs, false, false)
+    );
+    return { badge: null, badgeKleur: '#888', nrDisplay: regels.join('\n') };
+  }
+
+  // Eén straat via BAG adressen
+  if (d.adressen && Object.keys(d.adressen).length === 1) {
+    const nrs = Object.values(d.adressen)[0];
+    let badge = null, badgeKleur = '#888';
+    if (isOneven) { badge = 'ONEVEN'; badgeKleur = '#e67e22'; }
+    else if (isEven) { badge = 'EVEN'; badgeKleur = '#3498db'; }
+    else if (nrs.length > 1 && nrs.length <= 30 && nrs[1] - nrs[0] === 2) { badge = 'ONEVEN/EVEN'; badgeKleur = '#8e44ad'; }
+    return { badge, badgeKleur, nrDisplay: nrsToDisplay(nrs, isOneven, isEven) };
+  }
+
+  // Fallback: oud nrs veld of naam parsen
+  const nrs = (d.nrs && d.nrs.length > 0) ? d.nrs : parseAdresReeks(d).map(Number);
   let badge = null, badgeKleur = '#888';
   if (isOneven) { badge = 'ONEVEN'; badgeKleur = '#e67e22'; }
   else if (isEven) { badge = 'EVEN'; badgeKleur = '#3498db'; }
-  else if (nrs.length > 1 && nrs.length <= 30 && nrs[1] && parseInt(nrs[1]) - parseInt(nrs[0]) === 2) { badge = 'ONEVEN/EVEN'; badgeKleur = '#8e44ad'; }
-  let nrDisplay;
-  if (nrs.length === 1) {
-    nrDisplay = nrs[0];
-  } else if (nrs.length <= 10) {
-    nrDisplay = nrs.join(' · ');
-  } else {
-    nrDisplay = nrs[0] + ' – ' + nrs[nrs.length-1] + (isOneven ? ' (oneven)' : isEven ? ' (even)' : '');
-  }
-  return { badge, badgeKleur, nrDisplay };
+  else if (nrs.length > 1 && nrs.length <= 30 && nrs[1] - nrs[0] === 2) { badge = 'ONEVEN/EVEN'; badgeKleur = '#8e44ad'; }
+  return { badge, badgeKleur, nrDisplay: nrsToDisplay(nrs, isOneven, isEven) };
 }
 
 function flyerMarkeerGedaan(kvk, idx) {
@@ -1758,10 +1806,8 @@ function flyerMarkeerGedaan(kvk, idx) {
   if (!fd.bezoek1) fd.bezoek1 = nieuw;
   else if (!fd.bezoek2) fd.bezoek2 = nieuw;
   else if (!fd.bezoek3) fd.bezoek3 = nieuw;
-  localStorage.setItem('vve_flyer', JSON.stringify(
-    Object.fromEntries(Object.entries(flyerData).filter(([k]) => !flyerDataInit?.[k] || JSON.stringify(flyerData[k]) !== JSON.stringify(flyerDataInit[k])))
-  ));
-  syncFlyerNaarGitHub();
+  localStorage.setItem('vve_flyer', JSON.stringify(flyerData));
+  syncFlyerNaarGitHub(kvkStr, flyerData[kvkStr]);
   flyerToonRoute();
   applyFilters();
 }
@@ -1849,10 +1895,8 @@ function flyerImportBackup(input) {
     try {
       const imported = JSON.parse(e.target.result);
       Object.assign(flyerData, imported);
-      localStorage.setItem('vve_flyer', JSON.stringify(
-        Object.fromEntries(Object.entries(flyerData).filter(([k]) => !flyerDataInit?.[k] || JSON.stringify(flyerData[k]) !== JSON.stringify(flyerDataInit[k])))
-      ));
-      syncFlyerNaarGitHub();
+      localStorage.setItem('vve_flyer', JSON.stringify(flyerData));
+      Object.entries(imported).forEach(([k, v]) => syncFlyerNaarGitHub(k, v));
       applyFilters();
       alert('✅ Backup geladen — ' + Object.keys(imported).length + ' VvEs geïmporteerd.');
     } catch(err) { alert('❌ Ongeldig bestand'); }
@@ -2227,7 +2271,6 @@ function exportFlyerRoute() {
 
 applyFilters();
 checkReminders();
-laadFlyerSync();
 
 // Service Worker registreren voor PWA
 if ('serviceWorker' in navigator) {
