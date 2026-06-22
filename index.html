@@ -1730,7 +1730,8 @@ function getFlyerAdresInfo(d) {
   const naam = d.naam.replace(/ TE [A-Z\s]+$/i, '');
   const isOneven = /ONEVEN/i.test(naam);
   const isEven = /\bEVEN\b/i.test(naam) && !isOneven;
-  const nrs = parseAdresReeks(d);
+  // Gebruik BAG nrs als beschikbaar (accuraat), anders parse uit naam
+  const nrs = (d.nrs && d.nrs.length > 0) ? d.nrs.map(String) : parseAdresReeks(d);
   let badge = null, badgeKleur = '#888';
   if (isOneven) { badge = 'ONEVEN'; badgeKleur = '#e67e22'; }
   else if (isEven) { badge = 'EVEN'; badgeKleur = '#3498db'; }
@@ -1741,9 +1742,7 @@ function getFlyerAdresInfo(d) {
   } else if (nrs.length <= 10) {
     nrDisplay = nrs.join(' · ');
   } else {
-    const step = parseInt(nrs[1]||nrs[0]) - parseInt(nrs[0]);
-    const suffix = step === 2 ? (isOneven ? ' (oneven)' : ' (even)') : '';
-    nrDisplay = nrs[0] + ' – ' + nrs[nrs.length-1] + suffix;
+    nrDisplay = nrs[0] + ' – ' + nrs[nrs.length-1] + (isOneven ? ' (oneven)' : isEven ? ' (even)' : '');
   }
   return { badge, badgeKleur, nrDisplay };
 }
