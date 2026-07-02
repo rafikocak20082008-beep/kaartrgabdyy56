@@ -481,6 +481,19 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   </div>
 </div>
 
+<!-- Flyer overzicht overlay -->
+<div id="flyer-overzicht" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.5);" onclick="if(event.target===this)this.style.display='none'">
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:20px;width:min(480px,95vw);max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="padding:20px 20px 14px;background:linear-gradient(135deg,#1d7a6e,#2aa090);border-radius:20px 20px 0 0;display:flex;justify-content:space-between;align-items:center;">
+      <div style="color:#fff;font-size:17px;font-weight:700;">📊 Flyeroverzicht</div>
+      <button onclick="document.getElementById('flyer-overzicht').style.display='none'" style="background:rgba(255,255,255,0.25);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;">×</button>
+    </div>
+    <div id="flyer-overzicht-inhoud" style="padding:16px;">
+      <div style="color:#aaa;text-align:center;padding:20px;">Laden...</div>
+    </div>
+  </div>
+</div>
+
 <!-- Flyer route panel -->
 <div id="flyer-panel" style="display:none;position:absolute;top:0;right:0;height:100%;width:360px;background:#f5f6f8;border-left:1px solid #ddd;overflow-y:auto;z-index:700;box-shadow:-4px 0 20px rgba(0,0,0,0.12);">
   <!-- Header -->
@@ -490,7 +503,10 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
         <button onclick="flyerMobielToonKaart()" style="display:none;background:rgba(255,255,255,0.25);border:none;color:#fff;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;" id="flyer-kaart-btn">‹ Kaart</button>
         <div style="font-size:17px;font-weight:700;color:#fff;">✉ Flyer modus</div>
       </div>
-      <button onclick="sluitFlyerPanel()" style="background:rgba(255,255,255,0.25);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1;">×</button>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button onclick="toonFlyerOverzicht()" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:700;">📊 Overzicht</button>
+        <button onclick="sluitFlyerPanel()" style="background:rgba(255,255,255,0.25);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1;">×</button>
+      </div>
     </div>
     <!-- Stap indicator -->
     <div id="flyer-stap-bar" style="display:flex;gap:6px;margin-top:12px;">
@@ -2139,6 +2155,55 @@ function toggleFlyerModus() {
     stopGPS();
     applyFilters();
   }
+}
+
+function toonFlyerOverzicht() {
+  document.getElementById('flyer-overzicht').style.display = 'block';
+  const inhoud = document.getElementById('flyer-overzicht-inhoud');
+  inhoud.innerHTML = '<div style="color:#aaa;text-align:center;padding:20px;">Laden...</div>';
+  _db.collection('sessies').orderBy('datum', 'desc').limit(50).get().then(snap => {
+    if (snap.empty) {
+      inhoud.innerHTML = '<div style="color:#aaa;text-align:center;padding:20px;">Nog geen sessies opgeslagen.</div>';
+      return;
+    }
+    // Groepeer per persoon
+    const perPersoon = {};
+    snap.forEach(doc => {
+      const s = doc.data();
+      const naam = s.naam || s.email;
+      if (!perPersoon[naam]) perPersoon[naam] = [];
+      perPersoon[naam].push(s);
+    });
+    inhoud.innerHTML = Object.entries(perPersoon).map(([naam, sessies]) => {
+      const totaalMin = sessies.reduce((a, s) => a + (s.minuten || 0), 0);
+      const totaalVves = sessies.reduce((a, s) => a + (s.aantalVves || 0), 0);
+      const uur = Math.floor(totaalMin / 60);
+      const min = totaalMin % 60;
+      const rijen = sessies.map(s => {
+        const u = Math.floor((s.minuten||0)/60);
+        const m = (s.minuten||0)%60;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:13px;">
+          <div>
+            <div style="font-weight:600;color:#222;">${s.buurten || '—'}</div>
+            <div style="color:#aaa;font-size:11px;">${s.datum}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="color:#1d7a6e;font-weight:700;">${s.aantalVves || 0} VvEs</div>
+            <div style="color:#aaa;font-size:11px;">${u > 0 ? u+'u ' : ''}${m}min</div>
+          </div>
+        </div>`;
+      }).join('');
+      return `<div style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-size:15px;font-weight:700;color:#222;">👤 ${naam}</div>
+          <div style="font-size:12px;color:#fff;background:#1d7a6e;padding:4px 10px;border-radius:20px;">${totaalVves} VvEs · ${uur > 0 ? uur+'u ' : ''}${min}min totaal</div>
+        </div>
+        ${rijen}
+      </div>`;
+    }).join('');
+  }).catch(() => {
+    inhoud.innerHTML = '<div style="color:#e74c3c;text-align:center;padding:20px;">Fout bij laden.</div>';
+  });
 }
 
 function sluitFlyerPanel() {
