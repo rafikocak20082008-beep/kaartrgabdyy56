@@ -1922,9 +1922,21 @@ function flyerOpslaanTijd() {
       fd.herstart = new Date(new Date(fd.bezoek1.datum).getTime()+365*24*60*60*1000).toISOString().split('T')[0];
     }
   });
-  localStorage.setItem('vve_flyer', JSON.stringify(
-    Object.fromEntries(Object.entries(flyerData).filter(([k])=>!flyerDataInit?.[k] || JSON.stringify(flyerData[k])!==JSON.stringify(flyerDataInit[k])))
-  ));
+  localStorage.setItem('vve_flyer', JSON.stringify(flyerData));
+  // Sync alle gewijzigde VvEs naar Firebase
+  flyerHuidigeRoute.forEach(d => syncFlyerNaarGitHub(String(d.kvk), flyerData[String(d.kvk)]));
+  // Sla sessie op in Firebase (zichtbaar in dashboard)
+  if (_fbGebruiker) {
+    const sessieId = datum + '_' + Date.now();
+    _db.collection('sessies').doc(sessieId).set({
+      datum,
+      naam: _fbGebruiker.displayName || _fbGebruiker.email,
+      email: _fbGebruiker.email,
+      buurten: flyerGeselecteerdeBuurten.join(', '),
+      aantalVves: flyerHuidigeRoute.length,
+      minuten: uur * 60 + min
+    });
+  }
   // Sla herinnering op voor dit deel
   const buurtNaam = flyerGekozeBuurtItem?.buurt || [...new Set(flyerGeselecteerdeBuurten)].join(', ');
   const deelNr = flyerGekozeBuurtItem?.deelNr || 1;
