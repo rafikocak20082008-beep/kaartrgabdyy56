@@ -199,6 +199,43 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   </div>
 </div>
 
+<!-- INTRO SPLASH SCREEN -->
+<div id="intro-overlay" style="display:none;position:fixed;inset:0;z-index:999998;background:#050e0c;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;">
+  <canvas id="intro-canvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+  <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:0;text-align:center;">
+    <img src="icon-192.png" style="width:90px;border-radius:20px;box-shadow:0 0 40px rgba(29,122,110,0.8),0 0 80px rgba(29,122,110,0.4);animation:introLogo 1s cubic-bezier(0.34,1.56,0.64,1) forwards;opacity:0;">
+    <div style="margin-top:24px;font-size:36px;font-weight:900;letter-spacing:-1px;animation:introTitel 0.8s ease 0.4s forwards;opacity:0;">
+      <span style="color:#fff;">VVE</span><span style="color:#8dc63f;">gemak</span>
+    </div>
+    <div style="color:rgba(255,255,255,0.5);font-size:13px;letter-spacing:3px;text-transform:uppercase;margin-top:8px;animation:introTitel 0.8s ease 0.7s forwards;opacity:0;">Amsterdam · VvE Kaart</div>
+    <div style="margin-top:40px;display:flex;gap:24px;animation:introTitel 0.8s ease 1s forwards;opacity:0;">
+      <div style="text-align:center;">
+        <div style="font-size:28px;font-weight:800;color:#8dc63f;">27K+</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;">VvEs</div>
+      </div>
+      <div style="width:1px;background:rgba(255,255,255,0.1);"></div>
+      <div style="text-align:center;">
+        <div style="font-size:28px;font-weight:800;color:#1d7a6e;">AMS</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;">Regio</div>
+      </div>
+      <div style="width:1px;background:rgba(255,255,255,0.1);"></div>
+      <div style="text-align:center;">
+        <div style="font-size:28px;font-weight:800;color:#8dc63f;">Live</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;">Data</div>
+      </div>
+    </div>
+    <div style="margin-top:48px;width:200px;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;animation:introTitel 0s ease 1.2s forwards;opacity:0;">
+      <div style="height:100%;background:linear-gradient(90deg,#1d7a6e,#8dc63f);border-radius:2px;animation:introBar 2.2s ease 1.2s forwards;width:0%;"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes introLogo { from{opacity:0;transform:scale(0.3) translateY(20px)} to{opacity:1;transform:scale(1) translateY(0)} }
+@keyframes introTitel { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes introBar { from{width:0%} to{width:100%} }
+</style>
+
 <div id="login-overlay" style="display:flex;position:fixed;inset:0;z-index:999999;background:#1d7a6e;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
   <img src="icon-192.png" style="width:80px;border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,0.3)">
   <div style="color:#fff;font-size:24px;font-weight:700;">VVEgemak Kaart</div>
@@ -677,10 +714,77 @@ function uitloggen() {
   _auth.signOut();
 }
 
+function speelIntroAf() {
+  const intro = document.getElementById('intro-overlay');
+  if (!intro) return;
+  intro.style.display = 'flex';
+
+  const canvas = document.getElementById('intro-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  // Particles
+  const particles = Array.from({length: 120}, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    r: Math.random() * 2.5 + 0.5,
+    vx: (Math.random() - 0.5) * 0.6,
+    vy: (Math.random() - 0.5) * 0.6,
+    a: Math.random() * 0.8 + 0.2,
+    color: Math.random() > 0.5 ? '#1d7a6e' : '#8dc63f'
+  }));
+
+  let frame = 0;
+  let animId;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = canvas.width;
+      if (p.x > canvas.width) p.x = 0;
+      if (p.y < 0) p.y = canvas.height;
+      if (p.y > canvas.height) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.a * (0.5 + 0.5 * Math.sin(frame * 0.03 + p.x));
+      ctx.fill();
+      // verbindingslijnen
+      particles.forEach(q => {
+        const d = Math.hypot(p.x - q.x, p.y - q.y);
+        if (d < 90) {
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
+          ctx.strokeStyle = '#1d7a6e';
+          ctx.globalAlpha = (1 - d/90) * 0.15;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      });
+    });
+    ctx.globalAlpha = 1;
+    frame++;
+    animId = requestAnimationFrame(draw);
+  }
+  draw();
+
+  // Fade out na 3.5s
+  setTimeout(() => {
+    intro.style.transition = 'opacity 1s ease';
+    intro.style.opacity = '0';
+    setTimeout(() => {
+      intro.style.display = 'none';
+      cancelAnimationFrame(animId);
+    }, 1000);
+  }, 3500);
+}
+
 _auth.onAuthStateChanged(user => {
   if (user && TOEGESTANE_EMAILS.includes(user.email)) {
     _fbGebruiker = user;
     document.getElementById('login-overlay').style.display = 'none';
+    speelIntroAf();
     laadFlyerSync();
   } else if (user) {
     _auth.signOut();
