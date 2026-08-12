@@ -339,7 +339,6 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 </div>
 
 <div id="top-btns">
-  <button class="top-btn" id="drieD-btn" onclick="toggleDrieD()" title="3D modus" style="font-size:13px;font-weight:800;letter-spacing:0.5px;">3D</button>
   <button class="top-btn" id="dark-btn" onclick="toggleDarkMode()" title="Donkere modus">
     <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
   </button>
@@ -776,6 +775,7 @@ function speelIntroAf() {
     setTimeout(() => {
       intro.style.display = 'none';
       cancelAnimationFrame(animId);
+      startPulse();
     }, 1000);
   }, 3500);
 }
@@ -836,56 +836,25 @@ uniekeBeheerders.forEach(b=>{
   bList.appendChild(div);
 });
 
-let _drieD = false;
 let _pulsePhase = 0;
 let _animFrame = null;
 
-const MAP_STYLE_LICHT = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 const MAP_STYLE_DONKER = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
-
-function toggleDrieD() {
-  _drieD = !_drieD;
-  const btn = document.getElementById('drieD-btn');
-  if (_drieD) {
-    btn.style.background = '#1d7a6e';
-    btn.style.color = '#fff';
-    btn.textContent = '3D ✦';
-    deckgl.setProps({
-      mapStyle: MAP_STYLE_DONKER,
-      initialViewState: { longitude: 4.895, latitude: 52.370, zoom: 12, pitch: 55, bearing: -15, transitionDuration: 1200 }
-    });
-    startPulse();
-  } else {
-    btn.style.background = 'rgba(255,255,255,0.95)';
-    btn.style.color = '#333';
-    btn.textContent = '3D';
-    deckgl.setProps({
-      mapStyle: MAP_STYLE_LICHT,
-      initialViewState: { longitude: 4.895, latitude: 52.370, zoom: 11, pitch: 0, bearing: 0, transitionDuration: 800 }
-    });
-    stopPulse();
-  }
-  applyFilters();
-}
 
 function startPulse() {
   if (_animFrame) return;
   function tick() {
-    _pulsePhase = (_pulsePhase + 0.04) % (Math.PI * 2);
+    _pulsePhase = (_pulsePhase + 0.025) % (Math.PI * 2);
     applyFilters();
     _animFrame = requestAnimationFrame(tick);
   }
   _animFrame = requestAnimationFrame(tick);
 }
 
-function stopPulse() {
-  if (_animFrame) { cancelAnimationFrame(_animFrame); _animFrame = null; }
-}
-
 const deckgl = new DeckGL({
   container: 'container',
-  mapStyle: MAP_STYLE_LICHT,
-  initialViewState: { longitude: 4.895, latitude: 52.370, zoom: 11, pitch: 0, bearing: 0 },
+  mapStyle: MAP_STYLE_DONKER,
+  initialViewState: { longitude: 4.895, latitude: 52.370, zoom: 12, pitch: 52, bearing: -12 },
   controller: true,
   onViewStateChange: ({viewState}) => {
     const logo = document.getElementById('header');
@@ -1030,58 +999,61 @@ function renderLayers(data){
   };
 
   const pulse = 0.5 + 0.5 * Math.sin(_pulsePhase);
-  const pulseRadius = _drieD ? 5 + pulse * 4 : 0;
 
   const puntLayer = new ScatterplotLayer({
     id: 'vves', data: gewone,
     getPosition: d=>[d.lng,d.lat],
     getFillColor: d => {
       if(flyerModus){ const fc=getFlyerKleur(d); return fc||[180,180,180,80]; }
-      if(_drieD) return d.totaal>=50 ? [29,200,170,230] : [140,220,100,200];
-      return getColor(d);
+      return d.totaal>=50 ? [29,200,170,220] : [140,220,100,190];
     },
-    getRadius: d => _drieD ? 6 + pulse*3 : getRadius(totaalFuncties(d)),
-    radiusUnits: 'pixels', radiusMinPixels: 5, radiusMaxPixels: _drieD ? 18 : 10,
-    lineWidthMinPixels: _drieD ? 1.5 : 0.5,
+    getRadius: d => 5 + pulse * 2.5,
+    radiusUnits: 'pixels', radiusMinPixels: 4, radiusMaxPixels: 16,
+    lineWidthMinPixels: 1,
     stroked: true,
-    getLineColor: d => _drieD ? (d.totaal>=50 ? [29,230,190,180] : [160,240,120,150]) : [255,255,255,180],
-    pickable: true, autoHighlight: true, highlightColor: [50,180,160,255],
+    getLineColor: d => d.totaal>=50 ? [29,230,190,160] : [160,240,120,130],
+    pickable: true, autoHighlight: true, highlightColor: [255,255,255,200],
     onClick: ({object})=>clickHandler(object),
     onHover: hoverHandler,
-    updateTriggers: { getRadius: [_pulsePhase, _drieD], getFillColor: [_drieD, flyerModus], getLineColor: [_drieD] }
+    updateTriggers: { getRadius: _pulsePhase, getFillColor: flyerModus }
   });
 
   const klantLayer = new ScatterplotLayer({
     id: 'klanten', data: klantPunten,
     getPosition: d=>[d.lng,d.lat],
-    getFillColor: _drieD ? [255,210,50,255] : [245,166,35,255],
-    getRadius: _drieD ? 8 + pulse*4 : 10,
-    radiusUnits: 'pixels', radiusMinPixels: 7, radiusMaxPixels: _drieD ? 20 : 14,
-    lineWidthMinPixels: 2.5, stroked: true,
-    getLineColor: _drieD ? [255,240,100,255] : [255,255,255,255],
-    pickable: true, autoHighlight: true, highlightColor: [255,200,50,255],
+    getFillColor: [255,210,50,255],
+    getRadius: 7 + pulse * 3,
+    radiusUnits: 'pixels', radiusMinPixels: 6, radiusMaxPixels: 20,
+    lineWidthMinPixels: 2, stroked: true,
+    getLineColor: [255,240,100,220],
+    pickable: true, autoHighlight: true, highlightColor: [255,255,150,255],
     onClick: ({object})=>clickHandler(object),
     onHover: hoverHandler,
-    updateTriggers: { getRadius: [_pulsePhase, _drieD], getFillColor: [_drieD] }
+    updateTriggers: { getRadius: _pulsePhase }
   });
 
-  // 3D kolommen layer — alleen in 3D modus
-  const kolomLayer = _drieD && huidigZoom >= 12 ? new ColumnLayer({
+  // 3D kolommen — altijd aan, zichtbaar vanaf zoom 12
+  const kolomLayer = huidigZoom >= 12 ? new ColumnLayer({
     id: 'kolommen',
     data: punten.filter(d => d.totaal > 0),
-    getPosition: d=>[d.lng, d.lat],
-    getElevation: d => d.totaal * 8,
-    getFillColor: d => d.klant ? [255,200,50,220] : d.totaal>=50 ? [29,180,155,200] : [120,210,90,180],
-    getLineColor: [255,255,255,80],
-    radius: 18,
-    elevationScale: 1,
+    getPosition: d => [d.lng, d.lat],
+    getElevation: d => d.totaal * 12,
+    getFillColor: d => d.klant
+      ? [255, 200, 50, 230]
+      : d.totaal >= 50
+        ? [29, 210, 175, 200]
+        : [130, 220, 90, 180],
+    getLineColor: [255, 255, 255, 40],
+    radius: 14,
+    elevationScale: 1 + pulse * 0.15,
     extruded: true,
     pickable: true,
     autoHighlight: true,
-    highlightColor: [255,255,255,80],
-    onClick: ({object})=>clickHandler(object),
+    highlightColor: [255, 255, 255, 100],
+    onClick: ({object}) => clickHandler(object),
     onHover: hoverHandler,
-    material: { ambient: 0.35, diffuse: 0.8, shininess: 32, specularColor: [255,255,255] }
+    material: { ambient: 0.4, diffuse: 0.8, shininess: 64, specularColor: [100, 255, 200] },
+    updateTriggers: { elevationScale: _pulsePhase }
   }) : null;
 
   const layers = [clusterLayer, tekstLayer, kolomLayer, puntLayer, klantLayer].filter(Boolean);
