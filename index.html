@@ -252,7 +252,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 @keyframes introShin    { 0%{background-position:0%} 100%{background-position:200%} }
 </style>
 
-<div id="login-overlay" style="display:flex;position:fixed;inset:0;z-index:999999;background:#1d7a6e;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+<div id="login-overlay" style="display:none;position:fixed;inset:0;z-index:999999;background:#1d7a6e;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
   <img src="icon-192.png" style="width:80px;border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,0.3)">
   <div style="color:#fff;font-size:24px;font-weight:700;">VVEgemak Kaart</div>
   <div style="color:rgba(255,255,255,0.8);font-size:14px;">Log in om verder te gaan</div>
@@ -794,37 +794,59 @@ function speelIntroAf() {
     setTimeout(() => {
       intro.style.display = 'none';
       cancelAnimationFrame(animId);
-      // Slide de kaart omhoog vanuit onderin
-      const container = document.getElementById('container');
-      container.style.transform = 'translateY(100vh)';
-      container.style.transition = 'none';
-      setTimeout(() => {
-        container.style.transition = 'transform 0.9s cubic-bezier(0.22,1,0.36,1)';
-        container.style.transform = 'translateY(0)';
-        setTimeout(() => { container.style.transform = ''; container.style.transition = ''; }, 950);
-      }, 30);
-      // Toon ook de UI-knoppen met fade-in
-      document.getElementById('header').style.opacity = '0';
-      document.getElementById('header').style.transition = 'opacity 0.8s ease 0.4s';
-      setTimeout(() => { document.getElementById('header').style.opacity = '1'; }, 60);
-    }, 1000);
+      _introKlaar = true;
+      if (_fbGebruiker) {
+        slideNaarKaart();
+      } else {
+        // Niet ingelogd — toon loginscherm met fade-in
+        const loginEl = document.getElementById('login-overlay');
+        loginEl.style.opacity = '0';
+        loginEl.style.display = 'flex';
+        setTimeout(() => {
+          loginEl.style.transition = 'opacity 0.5s ease';
+          loginEl.style.opacity = '1';
+        }, 30);
+      }
+    }, 900);
   }, 3500);
 }
+
+function slideNaarKaart() {
+  const container = document.getElementById('container');
+  container.style.transform = 'translateY(100vh)';
+  container.style.transition = 'none';
+  setTimeout(() => {
+    container.style.transition = 'transform 0.85s cubic-bezier(0.22,1,0.36,1)';
+    container.style.transform = 'translateY(0)';
+    setTimeout(() => { container.style.transform = ''; container.style.transition = ''; }, 900);
+  }, 30);
+  // header fade in
+  const header = document.getElementById('header');
+  header.style.opacity = '0';
+  header.style.transition = 'opacity 0.8s ease 0.5s';
+  setTimeout(() => { header.style.opacity = '1'; }, 80);
+}
+
+let _introKlaar = false;
 
 _auth.onAuthStateChanged(user => {
   if (user && TOEGESTANE_EMAILS.includes(user.email)) {
     _fbGebruiker = user;
     document.getElementById('login-overlay').style.display = 'none';
-    speelIntroAf();
+    if (_introKlaar) slideNaarKaart();
+    // anders wacht speelIntroAf() tot klaar en roept slideNaarKaart() aan
     laadFlyerSync();
   } else if (user) {
     _auth.signOut();
     document.getElementById('login-fout').style.display = 'block';
   } else {
     _fbGebruiker = null;
-    document.getElementById('login-overlay').style.display = 'flex';
+    // login-overlay wordt getoond nadat intro klaar is
   }
 });
+
+// Altijd intro starten bij pagina laden
+speelIntroAf();
 
 function laadFlyerSync() {
   _db.collection('flyer').onSnapshot(snap => {
