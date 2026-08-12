@@ -494,6 +494,23 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   </div>
 </div>
 
+<!-- Mijn sessies overlay -->
+<div id="mijn-sessies-overlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.5);" onclick="if(event.target===this)this.style.display='none'">
+  <div style="position:absolute;inset:0;background:#f7f9f8;overflow-y:auto;">
+    <!-- Header -->
+    <div style="padding:20px 20px 16px;background:linear-gradient(135deg,#1d7a6e,#2aa090);position:sticky;top:0;z-index:2;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="color:#fff;font-size:18px;font-weight:700;">📋 Mijn sessies</div>
+        <button onclick="document.getElementById('mijn-sessies-overlay').style.display='none'" style="background:rgba(255,255,255,0.25);border:none;color:#fff;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:20px;">×</button>
+      </div>
+      <div id="mijn-sessies-totaal" style="margin-top:12px;display:flex;gap:10px;"></div>
+    </div>
+    <div id="mijn-sessies-inhoud" style="padding:16px;max-width:500px;margin:0 auto;">
+      <div style="color:#aaa;text-align:center;padding:40px;">Laden...</div>
+    </div>
+  </div>
+</div>
+
 <!-- Flyer route panel -->
 <div id="flyer-panel" style="display:none;position:absolute;top:0;right:0;height:100%;width:360px;background:#f5f6f8;border-left:1px solid #ddd;overflow-y:auto;z-index:700;box-shadow:-4px 0 20px rgba(0,0,0,0.12);">
   <!-- Header -->
@@ -504,6 +521,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
         <div style="font-size:17px;font-weight:700;color:#fff;">✉ Flyer modus</div>
       </div>
       <div style="display:flex;gap:6px;align-items:center;">
+        <button onclick="toonMijnSessies()" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:700;">📋 Mijn sessies</button>
         <button onclick="toonFlyerOverzicht()" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:700;">📊 Overzicht</button>
         <button onclick="sluitFlyerPanel()" style="background:rgba(255,255,255,0.25);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1;">×</button>
       </div>
@@ -573,10 +591,14 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
     <div id="flyer-s5" style="display:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <div style="font-size:15px;font-weight:700;color:#222;">Route</div>
-        <div id="flyer-route-badge" style="background:#1d7a6e;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;"></div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <div id="flyer-timer" style="background:rgba(29,122,110,0.1);color:#1d7a6e;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;">⏱ 0:00</div>
+          <div id="flyer-route-badge" style="background:#1d7a6e;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;"></div>
+        </div>
       </div>
       <div id="flyer-route-info" style="background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:12px;color:#666;"></div>
       <div id="flyer-route-lijst"></div>
+      <div id="flyer-route-gedaan-lijst" style="margin-top:4px;"></div>
       <button onclick="flyerSessieKlaar()" style="width:100%;padding:16px;border-radius:14px;border:none;background:#1d7a6e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:12px;">✓ Klaar — sessie afronden</button>
       <button onclick="flyerNaarStap(3)" style="width:100%;padding:12px;border-radius:14px;border:2px solid #e0e0e0;background:#fff;color:#555;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;">← Terug naar buurten</button>
     </div>
@@ -1606,11 +1628,27 @@ function getFlyerKleur(d) {
   return volgend === 2 ? [39,174,96,255] : [52,152,219,255]; // groen=b2 blauw=b3
 }
 
+let _flyerTimerInterval = null;
+function flyerStartTimer() {
+  clearInterval(_flyerTimerInterval);
+  _flyerTimerInterval = setInterval(() => {
+    if (!flyerSessieStart) return;
+    const sec = Math.floor((Date.now() - flyerSessieStart) / 1000);
+    const u = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    const el = document.getElementById('flyer-timer');
+    if (el) el.textContent = '⏱ ' + (u > 0 ? u + ':' : '') + String(m).padStart(u>0?2:1,'0') + ':' + String(s).padStart(2,'0');
+  }, 1000);
+}
+
 function flyerNaarStap(n) {
   flyerHuidigeStap = n;
   [1,2,3,4,5,6].forEach(i => document.getElementById('flyer-s'+i).style.display = i===n?'block':'none');
   [1,2,3,4,5].forEach(i => document.getElementById('fstap-'+i).style.background = i<=n?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.3)');
   document.getElementById('flyer-stap-label').textContent = `Stap ${Math.min(n,5)} van 5`;
+  if (n === 5) flyerStartTimer();
+  else if (n !== 5) clearInterval(_flyerTimerInterval);
   applyFilters();
 }
 
@@ -1824,16 +1862,48 @@ function flyerMarkeerGedaan(kvk, idx) {
   else if (!fd.bezoek3) fd.bezoek3 = nieuw;
   localStorage.setItem('vve_flyer', JSON.stringify(flyerData));
   syncFlyerNaarGitHub(kvkStr, flyerData[kvkStr]);
+
+  // Sla voortgang direct op in Firebase (ook zonder "Klaar")
+  flyerSlaVoortgangOp();
+
   flyerToonRoute();
   applyFilters();
+
+  // Auto-trigger "Klaar" als alle VvEs in de route zijn afgevinkt
+  const alleGedaan = flyerHuidigeRoute.every(r => flyerData[String(r.kvk)]?.bezoek1);
+  if (alleGedaan && flyerHuidigeRoute.length > 0) {
+    setTimeout(() => flyerSessieKlaar(), 600);
+  }
+}
+
+let _flyerVoortgangTimer = null;
+function flyerSlaVoortgangOp() {
+  if (!_fbGebruiker) return;
+  clearTimeout(_flyerVoortgangTimer);
+  _flyerVoortgangTimer = setTimeout(() => {
+    const datum = new Date().toISOString().split('T')[0];
+    const gedaan = flyerHuidigeRoute.filter(r => flyerData[String(r.kvk)]?.bezoek1).length;
+    const minuten = flyerSessieStart ? Math.round((Date.now() - flyerSessieStart) / 60000) : 0;
+    const docId = datum + '_' + _fbGebruiker.email.replace(/[@.]/g, '_');
+    _db.collection('voortgang').doc(docId).set({
+      datum,
+      naam: _fbGebruiker.displayName || _fbGebruiker.email,
+      email: _fbGebruiker.email,
+      buurten: flyerGeselecteerdeBuurten.join(', '),
+      aantalVves: gedaan,
+      minuten,
+      bezig: true
+    }, {merge: true});
+  }, 2000);
 }
 
 function flyerToonRoute() {
   const buurtenStr = [...new Set(flyerGeselecteerdeBuurten)].join(', ');
 
   const zichtbaar = flyerHuidigeRoute.filter(d => !flyerData[String(d.kvk)]?.bezoek1);
+  const gedaanLijst = flyerHuidigeRoute.filter(d => flyerData[String(d.kvk)]?.bezoek1);
   const n = flyerHuidigeRoute.length;
-  const gedaanCount = n - zichtbaar.length;
+  const gedaanCount = gedaanLijst.length;
   const badge = document.getElementById('flyer-route-badge');
   badge.textContent = gedaanCount + ' / ' + n + ' gedaan';
   badge.style.background = gedaanCount === n ? '#27ae60' : gedaanCount > 0 ? '#f59500' : '#1d7a6e';
@@ -1870,6 +1940,20 @@ function flyerToonRoute() {
       </div>
     </div>`;
   }).join('');
+  // Gedane VvEs onderaan tonen
+  document.getElementById('flyer-route-gedaan-lijst').innerHTML = gedaanLijst.length === 0 ? '' :
+    `<div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.8px;margin:14px 0 8px;">✓ Afgerond (${gedaanLijst.length})</div>` +
+    gedaanLijst.map(d => {
+      const {nrDisplay} = getFlyerAdresInfo(d);
+      return `<div style="background:#f8f8f8;border-radius:12px;padding:10px 14px;margin-bottom:6px;border-left:4px solid #27ae60;display:flex;align-items:center;gap:10px;opacity:0.7;">
+        <span style="font-size:18px;color:#27ae60;">✓</span>
+        <div>
+          <div style="font-size:11px;color:#aaa;">${d.straat}</div>
+          <div style="font-size:15px;font-weight:700;color:#888;text-decoration:line-through;">${nrDisplay}</div>
+        </div>
+      </div>`;
+    }).join('');
+
   applyFilters();
 }
 
@@ -1952,6 +2036,9 @@ function flyerOpslaanTijd() {
       aantalVves: flyerHuidigeRoute.length,
       minuten: uur * 60 + min
     });
+    // Voortgang afsluiten
+    const docId = datum + '_' + _fbGebruiker.email.replace(/[@.]/g, '_');
+    _db.collection('voortgang').doc(docId).set({bezig: false}, {merge: true});
   }
   // Sla herinnering op voor dit deel
   const buurtNaam = flyerGekozeBuurtItem?.buurt || [...new Set(flyerGeselecteerdeBuurten)].join(', ');
@@ -2157,28 +2244,134 @@ function toggleFlyerModus() {
   }
 }
 
+function toonMijnSessies() {
+  document.getElementById('mijn-sessies-overlay').style.display = 'block';
+  document.getElementById('mijn-sessies-inhoud').innerHTML = '<div style="color:#aaa;text-align:center;padding:40px;">Laden...</div>';
+  document.getElementById('mijn-sessies-totaal').innerHTML = '';
+  if (!_fbGebruiker) return;
+  const mijnEmail = _fbGebruiker.email;
+
+  Promise.all([
+    _db.collection('sessies').where('email','==',mijnEmail).orderBy('datum','desc').get(),
+    _db.collection('voortgang').where('email','==',mijnEmail).orderBy('datum','desc').get()
+  ]).then(([sessieSnap, voortgangSnap]) => {
+    const sessies = [];
+    sessieSnap.forEach(doc => sessies.push({...doc.data(), afgerond: true}));
+
+    // Voortgang toevoegen als er geen sessie is op die dag
+    voortgangSnap.forEach(doc => {
+      const v = doc.data();
+      if (!v.bezig) return;
+      const heeftSessie = sessies.some(s => s.datum === v.datum);
+      if (!heeftSessie) sessies.push({...v, afgerond: false});
+    });
+
+    // Sorteer op datum nieuwste eerst
+    sessies.sort((a, b) => b.datum.localeCompare(a.datum));
+
+    const totaalMin = sessies.filter(s=>s.afgerond).reduce((a,s)=>a+(s.minuten||0),0);
+    const totaalVves = sessies.filter(s=>s.afgerond).reduce((a,s)=>a+(s.aantalVves||0),0);
+    const totaalU = Math.floor(totaalMin/60);
+    const totaalM = totaalMin%60;
+
+    document.getElementById('mijn-sessies-totaal').innerHTML = `
+      <div style="background:rgba(255,255,255,0.2);border-radius:12px;padding:10px 14px;flex:1;text-align:center;">
+        <div style="color:#fff;font-size:22px;font-weight:800;">${totaalVves}</div>
+        <div style="color:rgba(255,255,255,0.8);font-size:11px;">VvEs totaal</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.2);border-radius:12px;padding:10px 14px;flex:1;text-align:center;">
+        <div style="color:#fff;font-size:22px;font-weight:800;">${totaalU}u ${totaalM}m</div>
+        <div style="color:rgba(255,255,255,0.8);font-size:11px;">totaal gelopen</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.2);border-radius:12px;padding:10px 14px;flex:1;text-align:center;">
+        <div style="color:#fff;font-size:22px;font-weight:800;">${sessies.filter(s=>s.afgerond).length}</div>
+        <div style="color:rgba(255,255,255,0.8);font-size:11px;">sessies</div>
+      </div>`;
+
+    if (sessies.length === 0) {
+      document.getElementById('mijn-sessies-inhoud').innerHTML = '<div style="color:#aaa;text-align:center;padding:40px;">Nog geen sessies.</div>';
+      return;
+    }
+
+    document.getElementById('mijn-sessies-inhoud').innerHTML = sessies.map(s => {
+      const u = Math.floor((s.minuten||0)/60);
+      const m = (s.minuten||0)%60;
+      const datumNl = new Date(s.datum).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+      const tijdStr = u > 0 ? `${u} uur ${m} min` : `${m} min`;
+      const badge = s.afgerond
+        ? `<span style="background:#e8f5e9;color:#27ae60;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;">✓ Afgerond</span>`
+        : `<span style="background:#fff3cd;color:#b36a00;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;">⏸ Niet afgerond</span>`;
+      return `<div style="background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#1d7a6e;margin-bottom:2px;">${s.buurten || '—'}</div>
+            <div style="font-size:11px;color:#aaa;">${datumNl}</div>
+          </div>
+          ${badge}
+        </div>
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;background:#f7f9f8;border-radius:10px;padding:10px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:#222;">${s.aantalVves||0}</div>
+            <div style="font-size:10px;color:#aaa;margin-top:2px;">VvEs</div>
+          </div>
+          <div style="flex:1;background:#f7f9f8;border-radius:10px;padding:10px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:#222;">${tijdStr}</div>
+            <div style="font-size:10px;color:#aaa;margin-top:2px;">gelopen</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }).catch(e => {
+    console.warn(e);
+    document.getElementById('mijn-sessies-inhoud').innerHTML = '<div style="color:#e74c3c;text-align:center;padding:40px;">Fout bij laden.</div>';
+  });
+}
+
 function toonFlyerOverzicht() {
   document.getElementById('flyer-overzicht').style.display = 'block';
   const inhoud = document.getElementById('flyer-overzicht-inhoud');
   inhoud.innerHTML = '<div style="color:#aaa;text-align:center;padding:20px;">Laden...</div>';
-  _db.collection('sessies').orderBy('datum', 'desc').limit(50).get().then(snap => {
-    if (snap.empty) {
+
+  Promise.all([
+    _db.collection('sessies').orderBy('datum', 'desc').limit(100).get(),
+    _db.collection('voortgang').orderBy('datum', 'desc').limit(50).get()
+  ]).then(([sessieSnap, voortgangSnap]) => {
+    const perPersoon = {};
+
+    // Volledige sessies
+    sessieSnap.forEach(doc => {
+      const s = doc.data();
+      const naam = s.naam || s.email;
+      if (!perPersoon[naam]) perPersoon[naam] = {naam, sessies: [], vandaagBezig: null};
+      perPersoon[naam].sessies.push({...s, type: 'sessie'});
+    });
+
+    // Voortgang (bezig of afgebroken sessies)
+    voortgangSnap.forEach(doc => {
+      const v = doc.data();
+      if (!v.bezig) return;
+      const naam = v.naam || v.email;
+      if (!perPersoon[naam]) perPersoon[naam] = {naam, sessies: [], vandaagBezig: null};
+      // Alleen tonen als er geen sessie is op dezelfde datum
+      const heeftSessie = perPersoon[naam].sessies.some(s => s.datum === v.datum);
+      if (!heeftSessie) perPersoon[naam].vandaagBezig = v;
+    });
+
+    if (Object.keys(perPersoon).length === 0) {
       inhoud.innerHTML = '<div style="color:#aaa;text-align:center;padding:20px;">Nog geen sessies opgeslagen.</div>';
       return;
     }
-    // Groepeer per persoon
-    const perPersoon = {};
-    snap.forEach(doc => {
-      const s = doc.data();
-      const naam = s.naam || s.email;
-      if (!perPersoon[naam]) perPersoon[naam] = [];
-      perPersoon[naam].push(s);
-    });
-    inhoud.innerHTML = Object.entries(perPersoon).map(([naam, sessies]) => {
+
+    inhoud.innerHTML = Object.values(perPersoon).map(({naam, sessies, vandaagBezig}) => {
       const totaalMin = sessies.reduce((a, s) => a + (s.minuten || 0), 0);
       const totaalVves = sessies.reduce((a, s) => a + (s.aantalVves || 0), 0);
       const uur = Math.floor(totaalMin / 60);
       const min = totaalMin % 60;
+
+      const bezigBadge = vandaagBezig ? `<div style="background:#fff3cd;border:1px solid #f59500;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#b36a00;">
+        🔄 Vandaag bezig: ${vandaagBezig.buurten || '—'} · ${vandaagBezig.aantalVves || 0} VvEs · ${Math.floor((vandaagBezig.minuten||0)/60)}u${(vandaagBezig.minuten||0)%60}min (niet afgerond)
+      </div>` : '';
+
       const rijen = sessies.map(s => {
         const u = Math.floor((s.minuten||0)/60);
         const m = (s.minuten||0)%60;
@@ -2193,12 +2386,14 @@ function toonFlyerOverzicht() {
           </div>
         </div>`;
       }).join('');
-      return `<div style="margin-bottom:20px;">
+
+      return `<div style="margin-bottom:24px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
           <div style="font-size:15px;font-weight:700;color:#222;">👤 ${naam}</div>
           <div style="font-size:12px;color:#fff;background:#1d7a6e;padding:4px 10px;border-radius:20px;">${totaalVves} VvEs · ${uur > 0 ? uur+'u ' : ''}${min}min totaal</div>
         </div>
-        ${rijen}
+        ${bezigBadge}
+        ${rijen || '<div style="color:#aaa;font-size:12px;padding:8px 0;">Nog geen afgeronde sessies.</div>'}
       </div>`;
     }).join('');
   }).catch(() => {
@@ -2232,27 +2427,6 @@ function setFlyerFilter(btn, filter) {
   if(flyerStartpunt) maakFlyerRoute(flyerStartpunt.lat, flyerStartpunt.lng);
 }
 
-function getFlyerKleur(kvk) {
-  if(!flyerModus) return null;
-  const d = flyerData[kvk];
-  if(!d || !d.datum) return [220,53,69,220]; // rood = nooit
-  const dagen = (Date.now() - new Date(d.datum).getTime()) / (1000*60*60*24);
-  if(dagen > 90) return [245,166,35,220]; // oranje = oud
-  return [29,122,110,230]; // donkergroen = recent
-}
-
-function markeerGeflyerd(d) {
-  if(!d) return;
-  if(!flyerData[d.kvk]) flyerData[d.kvk] = {};
-  flyerData[d.kvk].datum = new Date().toISOString();
-  localStorage.setItem('vve_flyer', JSON.stringify(flyerData));
-  
-  const nu = new Date().toLocaleDateString('nl-NL', {day:'numeric',month:'long',year:'numeric'});
-  document.getElementById('laatste-flyer').innerHTML = `<span style="background:#e8f5e9;padding:3px 8px;border-radius:10px;border:1px solid #c8e6c9;">✉ ${nu}</span>`;
-  
-  applyFilters();
-  if(flyerStartpunt) maakFlyerRoute(flyerStartpunt.lat, flyerStartpunt.lng);
-}
 
 function afstand(lat1, lng1, lat2, lng2) {
   const R = 6371000;
