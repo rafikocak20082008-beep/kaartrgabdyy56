@@ -716,6 +716,16 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
         </div>
       </div>
       <div id="flyer-route-info" style="background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:12px;color:#666;"></div>
+      <!-- Voortgangsbalk -->
+      <div id="flyer-voortgang-wrap" style="background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span id="flyer-voortgang-label" style="font-size:12px;font-weight:700;color:#444;">0 van 0 gedaan</span>
+          <span id="flyer-voortgang-pct" style="font-size:12px;font-weight:700;color:#1d7a6e;">0%</span>
+        </div>
+        <div style="background:#f0f0f0;border-radius:99px;height:8px;overflow:hidden;">
+          <div id="flyer-voortgang-balk" style="height:100%;border-radius:99px;background:linear-gradient(90deg,#1d7a6e,#2aa090);transition:width 0.4s ease;width:0%;"></div>
+        </div>
+      </div>
       <div id="flyer-route-lijst"></div>
       <div id="flyer-route-gedaan-lijst" style="margin-top:4px;"></div>
       <button onclick="flyerSessieKlaar()" style="width:100%;padding:16px;border-radius:14px;border:none;background:#1d7a6e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:12px;">✓ Klaar — sessie afronden</button>
@@ -2249,6 +2259,16 @@ function flyerToonRoute() {
   const badge = document.getElementById('flyer-route-badge');
   badge.textContent = gedaanCount + ' / ' + n + ' gedaan';
   badge.style.background = gedaanCount === n ? '#27ae60' : gedaanCount > 0 ? '#f59500' : '#1d7a6e';
+  // Voortgangsbalk bijwerken
+  if (n > 0) {
+    const pct = Math.round((gedaanCount / n) * 100);
+    document.getElementById('flyer-voortgang-wrap').style.display = 'block';
+    document.getElementById('flyer-voortgang-label').textContent = gedaanCount + ' van ' + n + ' gedaan';
+    document.getElementById('flyer-voortgang-pct').textContent = pct + '%';
+    document.getElementById('flyer-voortgang-balk').style.width = pct + '%';
+    document.getElementById('flyer-voortgang-balk').style.background = gedaanCount === n ? 'linear-gradient(90deg,#27ae60,#2ecc71)' : 'linear-gradient(90deg,#1d7a6e,#2aa090)';
+    document.getElementById('flyer-voortgang-pct').style.color = gedaanCount === n ? '#27ae60' : '#1d7a6e';
+  }
   const deelLabel = flyerGekozeBuurtItem?.totaalDelen > 1 ? ` · deel ${flyerGekozeBuurtItem.deelNr}/${flyerGekozeBuurtItem.totaalDelen}` : '';
   document.getElementById('flyer-route-info').innerHTML = `<strong>${flyerGekozeneFlyer} flyer</strong> · ${flyerType==='basic'?'Basic':'Premium'} · ${buurtenStr}${deelLabel}`;
   document.getElementById('flyer-route-lijst').innerHTML = zichtbaar.map((d,i)=>{
