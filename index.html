@@ -942,6 +942,7 @@ _auth.onAuthStateChanged(user => {
     if (_introKlaar) slideNaarKaart();
     // anders wacht speelIntroAf() tot klaar en roept slideNaarKaart() aan
     laadFlyerSync();
+    startReminderCheck();
   } else if (user) {
     _auth.signOut();
     document.getElementById('login-fout').style.display = 'block';
@@ -1842,6 +1843,8 @@ function kMeansCluster(vves, k) {
 }
 
 // ── Push notificaties & herinneringen ───────────────
+const FLYER_EMAIL = 'rafikocak20.08.2008@gmail.com'; // alleen broertje krijgt meldingen
+
 async function vraagPushToestemming() {
   if (!('Notification' in window)) return false;
   if (Notification.permission === 'granted') return true;
@@ -1850,31 +1853,83 @@ async function vraagPushToestemming() {
 }
 
 function slaReminderOp(buurtNaam, deelNr, totaalDelen) {
-  const reminders = JSON.parse(localStorage.getItem('vve_reminders') || '[]');
   const label = buurtNaam + (totaalDelen > 1 ? ' deel ' + deelNr : '');
-  const filtered = reminders.filter(r => r.label !== label);
   const volgende = new Date(Date.now() + 14*24*60*60*1000).toISOString();
+  // Lokaal opslaan
+  const reminders = JSON.parse(localStorage.getItem('vve_reminders') || '[]');
+  const filtered = reminders.filter(r => r.label !== label);
   filtered.push({label, volgende, buurt: buurtNaam, deel: deelNr});
   localStorage.setItem('vve_reminders', JSON.stringify(filtered));
+  // Ook in Firebase opslaan zodat het op elk apparaat werkt
+  if (_fbGebruiker) {
+    _db.collection('reminders').doc(label).set({
+      label, volgende, buurt: buurtNaam, deel: deelNr,
+      email: _fbGebruiker.email,
+      aangemaakt: new Date().toISOString()
+    });
+  }
 }
 
-function checkReminders() {
+function verwijderReminder(label) {
+  // Verwijder uit Firebase als buurt opnieuw geflyerd is
+  _db.collection('reminders').doc(label).delete().catch(()=>{});
   const reminders = JSON.parse(localStorage.getItem('vve_reminders') || '[]');
+  localStorage.setItem('vve_reminders', JSON.stringify(reminders.filter(r => r.label !== label)));
+}
+
+let _reminderInterval = null;
+
+function checkReminders() {
+  if (!_fbGebruiker || _fbGebruiker.email !== FLYER_EMAIL) return;
   const nu = Date.now();
   const banner = document.getElementById('reminder-banner');
-  const verval = reminders.filter(r => new Date(r.volgende).getTime() <= nu);
-  if (verval.length > 0) {
-    if (banner) {
-      banner.innerHTML = verval.map(r => `⏰ <strong>${r.label}</strong> moet opnieuw geflyerd worden!`).join('<br>');
+
+  // Lees altijd uit Firebase (persistent, werkt op elk apparaat)
+  _db.collection('reminders').where('email','==', FLYER_EMAIL).get().then(snap => {
+    const verval = [];
+    snap.forEach(doc => {
+      const r = doc.data();
+      if (new Date(r.volgende).getTime() <= nu) verval.push(r);
+    });
+
+    if (verval.length > 0) {
+      if (banner) {
+        banner.innerHTML = '⏰ ' + verval.map(r => `<strong>${r.label}</strong> moet opnieuw geflyerd!`).join(' &nbsp;·&nbsp; ');
+        banner.style.display = 'block';
+      }
+      // Browsermelding sturen
+      if (Notification.permission === 'granted') {
+        verval.forEach(r => {
+          new Notification('VVEgemak — tijd om te flyeren!', {
+            body: r.label + ' moet opnieuw bezocht worden. Ga er langs!',
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            tag: r.label, // voorkomt dubbele meldingen
+            requireInteraction: true // blijft staan tot gebruiker reageert
+          });
+        });
+      }
+    } else if (banner) {
+      banner.style.display = 'none';
+    }
+  }).catch(() => {
+    // Fallback: localStorage
+    const reminders = JSON.parse(localStorage.getItem('vve_reminders') || '[]');
+    const verval = reminders.filter(r => new Date(r.volgende).getTime() <= nu);
+    if (verval.length > 0 && banner) {
+      banner.innerHTML = '⏰ ' + verval.map(r => `<strong>${r.label}</strong> moet opnieuw geflyerd!`).join(' · ');
       banner.style.display = 'block';
     }
-    if (Notification.permission === 'granted') {
-      verval.forEach(r => new Notification('VVEgemak — tijd om te flyeren!', {
-        body: r.label + ' moet opnieuw geflyerd worden.',
-        icon: '/icon-192.png'
-      }));
-    }
-  } else if (banner) { banner.style.display = 'none'; }
+  });
+}
+
+function startReminderCheck() {
+  if (_fbGebruiker?.email !== FLYER_EMAIL) return;
+  vraagPushToestemming();
+  checkReminders();
+  clearInterval(_reminderInterval);
+  // Elke 30 min opnieuw checken terwijl app open is
+  _reminderInterval = setInterval(checkReminders, 30 * 60 * 1000);
 }
 
 function getAdresRange(d) {
@@ -2336,6 +2391,10 @@ function flyerOpslaanTijd() {
   const buurtNaam = flyerGekozeBuurtItem?.buurt || [...new Set(flyerGeselecteerdeBuurten)].join(', ');
   const deelNr = flyerGekozeBuurtItem?.deelNr || 1;
   const totaalDelen = flyerGekozeBuurtItem?.totaalDelen || 1;
+  // Verwijder oude reminder voor deze buurt (hij is er net geweest)
+  const oudLabel = buurtNaam + (totaalDelen > 1 ? ' deel ' + deelNr : '');
+  verwijderReminder(oudLabel);
+  // Zet nieuwe reminder voor over 14 dagen
   slaReminderOp(buurtNaam, deelNr, totaalDelen);
   sluitFlyerPanel();
   applyFilters();
