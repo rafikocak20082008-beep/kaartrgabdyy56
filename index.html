@@ -398,6 +398,19 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   <div id="keuze-lijst"></div>
 </div>
 
+<!-- Tegel-flip overlay bij VvE klik -->
+<div id="vve-flip-wrap" style="position:fixed;pointer-events:none;z-index:8000;display:none;">
+  <div id="vve-flip-inner" style="width:120px;height:60px;position:relative;transform-style:preserve-3d;transition:transform 0.42s cubic-bezier(0.4,0,0.2,1);">
+    <!-- Voorkant: gekleurde stip -->
+    <div id="vve-flip-front" style="position:absolute;inset:0;backface-visibility:hidden;border-radius:50%;width:24px;height:24px;top:18px;left:48px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.25);"></div>
+    <!-- Achterkant: naam kaartje -->
+    <div id="vve-flip-back" style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);background:#fff;border-radius:14px;padding:10px 14px;box-shadow:0 12px 40px rgba(0,0,0,0.22);display:flex;flex-direction:column;justify-content:center;min-width:160px;">
+      <div id="vve-flip-naam" style="font-size:12px;font-weight:800;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;"></div>
+      <div id="vve-flip-adres" style="font-size:10px;color:#999;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;"></div>
+    </div>
+  </div>
+</div>
+
 <div id="header">
   <img id="header-logo" alt="VVEgemak">
 </div>
@@ -1189,11 +1202,13 @@ function renderLayers(data){
   const gewone = punten.filter(d=>!d.klant);
   const klantPunten = punten.filter(d=>d.klant);
 
-  const clickHandler = (object) => {
+  const clickHandler = (object, x, y) => {
     if(!object) return true;
     if(flyerModus) { flyerPuntKlik(alleData.indexOf(object)); return true; }
     const zelfde = alleData.filter(d => Math.abs(d.lat-object.lat)<0.00001 && Math.abs(d.lng-object.lng)<0.00001);
-    if(zelfde.length > 1) { toonKeuzeMenu(zelfde, object.lat, object.lng); } else { openSidebar(object); }
+    if(zelfde.length > 1) { toonKeuzeMenu(zelfde, object.lat, object.lng); return true; }
+    // Tegel-flip animatie
+    tegelFlip(object, x, y, () => openSidebar(object));
     return true;
   };
   const hoverHandler = ({object, x, y}) => {
@@ -1217,7 +1232,7 @@ function renderLayers(data){
     stroked: true,
     getLineColor: [255,255,255,180],
     pickable: true, autoHighlight: true, highlightColor: [245,166,35,255],
-    onClick: ({object})=>clickHandler(object),
+    onClick: ({object,x,y})=>clickHandler(object,x,y),
     onHover: hoverHandler,
     updateTriggers: { getFillColor: flyerModus }
   });
@@ -1239,7 +1254,7 @@ function renderLayers(data){
     lineWidthMinPixels: 2.5, stroked: true,
     getLineColor: [255,255,255,255],
     pickable: true, autoHighlight: true, highlightColor: [255,220,80,255],
-    onClick: ({object})=>clickHandler(object),
+    onClick: ({object,x,y})=>clickHandler(object,x,y),
     onHover: hoverHandler,
   });
 
@@ -1730,6 +1745,39 @@ function selectResult(idx){
 }
 
 function toonRecente(){}
+
+function tegelFlip(d, x, y, callback) {
+  const wrap = document.getElementById('vve-flip-wrap');
+  const inner = document.getElementById('vve-flip-inner');
+  const front = document.getElementById('vve-flip-front');
+  const naam = document.getElementById('vve-flip-naam');
+  const adres = document.getElementById('vve-flip-adres');
+
+  const kleur = d.klant ? '#f5a623' : d.totaal >= 50 ? '#1d7a6e' : '#7bc67e';
+  front.style.background = `radial-gradient(circle at 35% 35%, ${d.klant?'#ffd080':d.totaal>=50?'#3aaa96':'#a8e6a8'}, ${kleur})`;
+  naam.textContent = d.naam;
+  adres.textContent = d.straat + ' ' + d.nr;
+
+  // Positioneer zodat de voorkant-stip precies op de klikplek zit
+  wrap.style.left = (x - 60) + 'px';
+  wrap.style.top = (y - 30) + 'px';
+  wrap.style.display = 'block';
+  inner.style.transition = 'none';
+  inner.style.transform = 'rotateY(0deg)';
+
+  // Start flip na 1 frame
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    inner.style.transition = 'transform 0.42s cubic-bezier(0.4,0,0.2,1)';
+    inner.style.transform = 'rotateY(180deg)';
+  }));
+
+  // Na flip: open sidebar en verberg overlay
+  setTimeout(() => {
+    wrap.style.display = 'none';
+    inner.style.transform = 'rotateY(0deg)';
+    callback();
+  }, 480);
+}
 function setType(type){
   filters.type=type;
   ['all','basic','premium'].forEach(t=>{
