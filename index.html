@@ -2270,7 +2270,25 @@ function flyerToonRoute() {
     document.getElementById('flyer-voortgang-pct').style.color = gedaanCount === n ? '#27ae60' : '#1d7a6e';
   }
   const deelLabel = flyerGekozeBuurtItem?.totaalDelen > 1 ? ` · deel ${flyerGekozeBuurtItem.deelNr}/${flyerGekozeBuurtItem.totaalDelen}` : '';
-  document.getElementById('flyer-route-info').innerHTML = `<strong>${flyerGekozeneFlyer} flyer</strong> · ${flyerType==='basic'?'Basic':'Premium'} · ${buurtenStr}${deelLabel}`;
+  // Geschatte looptijd berekenen
+  let loopLabel = '';
+  const resterendRoute = flyerHuidigeRoute.filter(d => !flyerData[String(d.kvk)]?.bezoek1);
+  if (resterendRoute.length > 0 && flyerStartpunt) {
+    let totaalM = 0;
+    let prev = flyerStartpunt;
+    resterendRoute.forEach(d => {
+      totaalM += afstand(prev.lat, prev.lng, d.lat, d.lng);
+      prev = d;
+    });
+    const loopMinuten = Math.round(totaalM / 83.3); // ~5 km/u = 83.3 m/min
+    const stopMinuten = resterendRoute.length * 2;   // ~2 min per brievenbus
+    const totaalMin = loopMinuten + stopMinuten;
+    const uren = Math.floor(totaalMin / 60);
+    const min = totaalMin % 60;
+    const tijdStr = uren > 0 ? `${uren}u ${min}m` : `${min} min`;
+    loopLabel = ` · ⏱ ~${tijdStr} (${(totaalM/1000).toFixed(1)} km)`;
+  }
+  document.getElementById('flyer-route-info').innerHTML = `<strong>${flyerGekozeneFlyer} flyer</strong> · ${flyerType==='basic'?'Basic':'Premium'} · ${buurtenStr}${deelLabel}${loopLabel}`;
   document.getElementById('flyer-route-lijst').innerHTML = zichtbaar.map((d,i)=>{
     const fd = flyerData[String(d.kvk)];
     const b1=fd?.bezoek1, b2=fd?.bezoek2, b3=fd?.bezoek3;
