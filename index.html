@@ -2676,9 +2676,19 @@ function kaartPinUpdateDots() {
 function kaartPinControleer() {
   if (_kaartPinBuffer === getKaartPin()) {
     const overlay = document.getElementById('kaart-pin-overlay');
-    overlay.style.transition = 'opacity 0.4s';
-    overlay.style.opacity = '0';
-    setTimeout(() => overlay.style.display = 'none', 400);
+    const flash = document.getElementById('warp-flash');
+    overlay.style.transformOrigin = 'center center';
+    overlay.style.animation = 'loginUit3D 0.92s cubic-bezier(0.4,0,1,1) forwards';
+    setTimeout(() => {
+      flash.style.display = 'block';
+      flash.style.animation = 'warpFlash 0.55s ease forwards';
+      setTimeout(() => { flash.style.display = 'none'; flash.style.animation = ''; }, 560);
+    }, 440);
+    setTimeout(() => {
+      overlay.style.display = 'none';
+      overlay.style.animation = '';
+      _doeKaartSlide();
+    }, 880);
   } else {
     document.getElementById('kaart-pin-msg').textContent = 'Onjuiste pincode';
     document.getElementById('kaart-pin-msg').style.color = '#ffcccc';
