@@ -346,6 +346,11 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 @keyframes introPuls    { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:1} 50%{transform:translate(-50%,-50%) scale(1.08);opacity:0.6} }
 @keyframes introShin    { 0%{background-position:0%} 100%{background-position:200%} }
 
+@keyframes vveRipple {
+  0%   { transform: translate(-50%,-50%) scale(0); opacity: 0.7; }
+  100% { transform: translate(-50%,-50%) scale(6); opacity: 0; }
+}
+
 /* 3D overgang login → kaart */
 @keyframes loginUit3D {
   0%   { transform: perspective(900px) rotateX(0deg) translateY(0) scale(1); opacity: 1; }
@@ -398,14 +403,8 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   <div id="keuze-lijst"></div>
 </div>
 
-<!-- VvE klik popup: rijst op vanuit de kaart -->
-<div id="vve-flip-wrap" style="position:fixed;pointer-events:none;z-index:8000;display:none;perspective:500px;">
-  <div id="vve-flip-card" style="background:#fff;border-radius:14px;padding:10px 16px;box-shadow:0 16px 40px rgba(0,0,0,0.22);min-width:160px;max-width:220px;transform-origin:bottom center;">
-    <div id="vve-flip-kleur" style="width:10px;height:10px;border-radius:50%;display:inline-block;margin-bottom:4px;vertical-align:middle;margin-right:6px;"></div>
-    <div id="vve-flip-naam" style="font-size:13px;font-weight:800;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-    <div id="vve-flip-adres" style="font-size:11px;color:#999;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-  </div>
-</div>
+<!-- Ripple bij VvE klik -->
+<div id="vve-ripple" style="position:fixed;pointer-events:none;z-index:8000;border-radius:50%;transform:translate(-50%,-50%) scale(0);opacity:0;"></div>
 
 <div id="header">
   <img id="header-logo" alt="VVEgemak">
@@ -1203,8 +1202,8 @@ function renderLayers(data){
     if(flyerModus) { flyerPuntKlik(alleData.indexOf(object)); return true; }
     const zelfde = alleData.filter(d => Math.abs(d.lat-object.lat)<0.00001 && Math.abs(d.lng-object.lng)<0.00001);
     if(zelfde.length > 1) { toonKeuzeMenu(zelfde, object.lat, object.lng); return true; }
-    // Tegel-flip animatie
-    tegelFlip(object, x, y, () => openSidebar(object));
+    rippleKlik(x, y, object);
+    openSidebar(object);
     return true;
   };
   const hoverHandler = ({object, x, y}) => {
@@ -1385,7 +1384,6 @@ function openSidebar(d){
   d.website = d.website || '';
   d.email = d.email || '';
   geselecteerdeVvE = d;
-  viegNaar(d.lng, d.lat, 17, 500);
   document.getElementById('sidebar').classList.add('open');
     document.getElementById('search-bar').style.display='none';
   document.getElementById('legenda').style.display='none';
@@ -1742,42 +1740,13 @@ function selectResult(idx){
 
 function toonRecente(){}
 
-function tegelFlip(d, x, y, callback) {
-  const wrap = document.getElementById('vve-flip-wrap');
-  const card = document.getElementById('vve-flip-card');
-  const kleur = d.klant ? '#f5a623' : d.totaal >= 50 ? '#1d7a6e' : '#7bc67e';
-
-  document.getElementById('vve-flip-kleur').style.background = kleur;
-  document.getElementById('vve-flip-naam').textContent = d.naam;
-  document.getElementById('vve-flip-adres').textContent = d.straat + ' ' + d.nr;
-
-  // Kaartje net boven de klikplek
-  wrap.style.left = (x - 80) + 'px';
-  wrap.style.top = (y - 80) + 'px';
-  wrap.style.display = 'block';
-
-  // Begin: plat (alsof het in de kaart ligt), klein en doorzichtig
-  card.style.transition = 'none';
-  card.style.transform = 'rotateX(80deg) scale(0.6)';
-  card.style.opacity = '0';
-
-  // Rijs op
+function rippleKlik(x, y, d) {
+  const el = document.getElementById('vve-ripple');
+  const kleur = d.klant ? '245,166,35' : d.totaal >= 50 ? '29,122,110' : '123,198,126';
+  el.style.cssText = `position:fixed;pointer-events:none;z-index:8000;border-radius:50%;width:40px;height:40px;left:${x}px;top:${y}px;background:rgba(${kleur},0.5);animation:none;transform:translate(-50%,-50%) scale(0);opacity:0;`;
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    card.style.transition = 'transform 0.38s cubic-bezier(0.22,1,0.36,1), opacity 0.22s ease';
-    card.style.transform = 'rotateX(0deg) scale(1)';
-    card.style.opacity = '1';
+    el.style.animation = 'vveRipple 0.5s ease-out forwards';
   }));
-
-  // Na animatie: verberg en open sidebar
-  setTimeout(() => {
-    card.style.transition = 'transform 0.2s ease, opacity 0.15s ease';
-    card.style.transform = 'rotateX(-20deg) scale(0.9) translateY(-8px)';
-    card.style.opacity = '0';
-    setTimeout(() => {
-      wrap.style.display = 'none';
-      callback();
-    }, 180);
-  }, 460);
 }
 function setType(type){
   filters.type=type;
