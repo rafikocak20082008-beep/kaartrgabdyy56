@@ -250,6 +250,19 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 @keyframes introBar     { from{width:0%} to{width:100%} }
 @keyframes introPuls    { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:1} 50%{transform:translate(-50%,-50%) scale(1.08);opacity:0.6} }
 @keyframes introShin    { 0%{background-position:0%} 100%{background-position:200%} }
+
+/* 3D overgang login → kaart */
+@keyframes loginUit3D {
+  0%   { transform: perspective(900px) rotateX(0deg) translateY(0) scale(1); opacity: 1; }
+  100% { transform: perspective(900px) rotateX(-22deg) translateY(-110%) scale(0.88); opacity: 0; }
+}
+@keyframes kaartIn3D {
+  0%   { transform: perspective(900px) rotateX(14deg) translateY(80px) scale(0.96); opacity: 0; }
+  60%  { opacity: 1; }
+  100% { transform: perspective(900px) rotateX(0deg) translateY(0) scale(1); opacity: 1; }
+}
+@keyframes loginKaartIn  { from{opacity:0;transform:scale(0.88) translateY(24px)} to{opacity:1;transform:scale(1) translateY(0)} }
+@keyframes loginKaartUit { from{opacity:1;transform:scale(1) translateY(0)} to{opacity:0;transform:scale(0.92) translateY(-20px)} }
 </style>
 
 <div id="login-overlay" style="display:none;position:fixed;inset:0;z-index:999999;background:linear-gradient(160deg,#0f4f48 0%,#1d7a6e 50%,#145f55 100%);flex-direction:column;align-items:center;justify-content:center;gap:0;overflow:hidden;">
@@ -839,24 +852,16 @@ function speelIntroAf() {
 
 function slideNaarKaart() {
   const loginEl = document.getElementById('login-overlay');
-  const kaart = document.getElementById('login-kaart');
 
   if (loginEl && loginEl.style.display !== 'none') {
-    // Kaart animatie weg
-    if (kaart) {
-      kaart.style.animation = 'loginKaartUit 0.4s cubic-bezier(0.55,0,1,0.45) forwards';
-    }
-    // Overlay fade weg
+    // Login overlay kantelt weg in 3D
+    loginEl.style.transformOrigin = 'center top';
+    loginEl.style.animation = 'loginUit3D 0.65s cubic-bezier(0.55,0,0.8,0.45) forwards';
     setTimeout(() => {
-      loginEl.style.transition = 'opacity 0.4s ease';
-      loginEl.style.opacity = '0';
-      setTimeout(() => {
-        loginEl.style.display = 'none';
-        loginEl.style.opacity = '';
-        loginEl.style.transition = '';
-        _doeKaartSlide();
-      }, 400);
-    }, 200);
+      loginEl.style.display = 'none';
+      loginEl.style.animation = '';
+      _doeKaartSlide();
+    }, 600);
   } else {
     _doeKaartSlide();
   }
@@ -864,27 +869,30 @@ function slideNaarKaart() {
 
 function _doeKaartSlide() {
   const container = document.getElementById('container');
-  container.style.transform = 'translateY(60px)';
+  // Zet beginpositie
+  container.style.animation = 'none';
   container.style.opacity = '0';
-  container.style.transition = 'none';
-  setTimeout(() => {
-    container.style.transition = 'transform 0.75s cubic-bezier(0.22,1,0.36,1), opacity 0.6s ease';
-    container.style.transform = 'translateY(0)';
-    container.style.opacity = '1';
+  container.style.transform = 'perspective(900px) rotateX(14deg) translateY(80px) scale(0.96)';
+  container.style.transformOrigin = 'center bottom';
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    container.style.animation = 'kaartIn3D 0.75s cubic-bezier(0.22,1,0.36,1) forwards';
     setTimeout(() => {
+      container.style.animation = '';
       container.style.transform = '';
       container.style.opacity = '';
-      container.style.transition = '';
+      container.style.transformOrigin = '';
     }, 800);
-  }, 30);
-  // header fade in
+  }));
+
+  // Header fade in iets later
   const header = document.getElementById('header');
   header.style.opacity = '0';
   setTimeout(() => {
-    header.style.transition = 'opacity 0.7s ease';
+    header.style.transition = 'opacity 0.6s ease';
     header.style.opacity = '1';
-    setTimeout(() => { header.style.transition = ''; }, 750);
-  }, 350);
+    setTimeout(() => { header.style.transition = ''; }, 650);
+  }, 400);
 }
 
 let _introKlaar = false;
