@@ -1079,6 +1079,142 @@ function slideNaarKaart() {
   }
 }
 
+function _kaartGlobeZoomAms() {
+  const overlay  = document.getElementById('kaart-pin-overlay');
+  const container = document.getElementById('container');
+  const header   = document.getElementById('header');
+
+  const DPR = window.devicePixelRatio || 1;
+  const W = window.innerWidth, H = window.innerHeight;
+
+  const cvs = document.createElement('canvas');
+  cvs.width  = W * DPR; cvs.height = H * DPR;
+  cvs.style.cssText = 'position:fixed;inset:0;z-index:999990;width:100%;height:100%;';
+  document.body.appendChild(cvs);
+  const ctx = cvs.getContext('2d');
+  ctx.scale(DPR, DPR);
+
+  overlay.style.display = 'none';
+  container.style.opacity = '0';
+  header.style.opacity = '0';
+
+  // Amsterdam: 52.37°N, 4.90°E
+  const AMS_LAT = 52.37 * Math.PI / 180;
+  const AMS_LON = 4.90  * Math.PI / 180;
+  const TARGET_ROT = -AMS_LON; // roteer zodat Amsterdam naar voren staat
+
+  const DURATION = 4200;
+  let t0 = null;
+
+  const lerp  = (a,b,t) => a + (b-a)*t;
+  const clamp = (v,lo,hi) => Math.max(lo,Math.min(hi,v));
+  const ph    = (t,lo,hi) => clamp((t-lo)/(hi-lo),0,1);
+  const easeIn   = t => t*t*t;
+  const easeInOut= t => t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+
+  function frame(ts) {
+    if (!t0) t0 = ts;
+    const t = Math.min((ts - t0) / DURATION, 1);
+    ctx.clearRect(0, 0, W, H);
+
+    // Achtergrond: donker → helder aan het einde
+    const fadeEnd = ph(t, 0.78, 1.0);
+    ctx.fillStyle = `rgb(${Math.round(lerp(3,210,fadeEnd))},${Math.round(lerp(16,220,fadeEnd))},${Math.round(lerp(14,205,fadeEnd))})`;
+    ctx.fillRect(0, 0, W, H);
+
+    // Globe grootte: groeit van klein naar enorm (vliegt erdoorheen)
+    const minR = Math.min(W,H) * 0.24;
+    const maxR = Math.sqrt(W*W+H*H) * 1.0;
+    const zp   = easeIn(ph(t, 0.38, 0.92));
+    const gR   = lerp(minR, maxR, zp);
+
+    // Rotatie: begint op 0.6, draait naar TARGET_ROT (Amsterdam voor)
+    const rot  = lerp(0.6, TARGET_ROT, easeInOut(ph(t, 0.05, 0.42)));
+
+    // Camera pan: Amsterdam blijft in beeld bij zoom
+    const gX = W / 2;
+    const gY = lerp(H/2, H/2 + gR * Math.sin(AMS_LAT), easeIn(ph(t, 0.38, 0.92)));
+
+    const gA = Math.max(0, 1 - ph(t, 0.80, 1.0) * 3); // globe vervaagt aan einde
+
+    // Gloed
+    if (zp < 0.85) {
+      const gl = ctx.createRadialGradient(gX, gY, 0, gX, gY, gR * 1.35);
+      gl.addColorStop(0, `rgba(29,122,110,${0.22*gA})`);
+      gl.addColorStop(1, 'rgba(3,16,14,0)');
+      ctx.beginPath(); ctx.arc(gX, gY, gR*1.35, 0, Math.PI*2);
+      ctx.fillStyle = gl; ctx.fill();
+    }
+
+    ctx.globalAlpha = gA;
+
+    // Globe rand
+    ctx.beginPath(); ctx.arc(gX, gY, gR, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(29,200,160,0.22)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    // Meridia (draaiende lengtecirkels)
+    for (let i = 0; i < 12; i++) {
+      const ang = rot + (i/12)*Math.PI;
+      const cosA = Math.cos(ang);
+      const a = (Math.abs(cosA)*0.28 + 0.04);
+      ctx.beginPath();
+      ctx.ellipse(gX, gY, gR*Math.abs(cosA), gR, 0, 0, Math.PI*2);
+      ctx.strokeStyle = `rgba(29,200,160,${a})`; ctx.lineWidth=0.9; ctx.stroke();
+    }
+
+    // Breedtecirkels
+    for (let i=1; i<=5; i++) {
+      const lat = (i/6)*Math.PI - Math.PI/2;
+      const rx = gR*Math.cos(lat), ry = gR*Math.sin(lat);
+      if (Math.abs(rx)<2) continue;
+      ctx.beginPath();
+      ctx.ellipse(gX, gY+ry, rx, rx*0.13, 0, 0, Math.PI*2);
+      ctx.strokeStyle='rgba(141,198,63,0.14)'; ctx.lineWidth=0.8; ctx.stroke();
+    }
+
+    // Amsterdam stip
+    const amsX = gX + gR * Math.cos(AMS_LAT) * Math.sin(AMS_LON + rot);
+    const amsY = gY - gR * Math.sin(AMS_LAT);
+    const depth = Math.cos(AMS_LAT) * Math.cos(AMS_LON + rot);
+
+    if (depth > 0) {
+      const da = depth * gA;
+      const pulse = 0.75 + 0.25*Math.sin(t * 18);
+      const dr = Math.max(4, Math.min(12, gR*0.022)) * pulse;
+
+      // Buitenring
+      ctx.beginPath(); ctx.arc(amsX, amsY, dr*2.8, 0, Math.PI*2);
+      ctx.strokeStyle = `rgba(255,90,60,${da*0.4})`; ctx.lineWidth=1.5; ctx.stroke();
+      // Stip
+      ctx.beginPath(); ctx.arc(amsX, amsY, dr, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,90,60,${da})`; ctx.fill();
+
+      // Label "Amsterdam" (alleen zichtbaar vóór zware zoom)
+      if (zp < 0.3 && da > 0.3) {
+        ctx.font = `bold ${Math.round(Math.max(12,gR*0.034))}px -apple-system,sans-serif`;
+        ctx.fillStyle = `rgba(255,255,255,${da})`;
+        ctx.fillText('Amsterdam', amsX + dr + 8, amsY + 5);
+      }
+    }
+
+    ctx.globalAlpha = 1;
+
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      cvs.remove();
+      container.style.opacity = '1';
+      setTimeout(() => {
+        header.style.transition = 'opacity 0.8s ease';
+        header.style.opacity = '1';
+        setTimeout(() => { header.style.transition=''; }, 820);
+      }, 80);
+    }
+  }
+
+  requestAnimationFrame(frame);
+}
+
 function _kaartShardOpen() {
   const overlay = document.getElementById('kaart-pin-overlay');
   const container = document.getElementById('container');
@@ -2819,7 +2955,7 @@ function kaartPinControleer() {
     const overlay = document.getElementById('kaart-pin-overlay');
     const flash = document.getElementById('warp-flash');
     overlay.style.transformOrigin = 'center center';
-    _kaartShardOpen();
+    _kaartGlobeZoomAms();
   } else {
     document.getElementById('kaart-pin-msg').textContent = 'Onjuiste pincode';
     document.getElementById('kaart-pin-msg').style.color = '#ffcccc';
