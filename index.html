@@ -508,17 +508,6 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
       </div>
     </div>
     <div class="filter-section">
-      <div class="filter-label">Status</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;" id="status-filter-knoppen">
-        <button class="status-filter-btn" onclick="setStatusFilter(this,'')" style="padding:7px 14px;border-radius:25px;border:none;background:#1d7a6e;color:#fff;font-size:12px;cursor:pointer;font-weight:700;">Alle</button>
-        <button class="status-filter-btn" onclick="setStatusFilter(this,'nieuw')" style="padding:7px 14px;border-radius:25px;border:none;background:#f0f2f5;color:#999;font-size:12px;cursor:pointer;">Nieuw</button>
-        <button class="status-filter-btn" onclick="setStatusFilter(this,'benaderd')" style="padding:7px 14px;border-radius:25px;border:none;background:#f0f2f5;color:#999;font-size:12px;cursor:pointer;">Benaderd</button>
-        <button class="status-filter-btn" onclick="setStatusFilter(this,'gesprek')" style="padding:7px 14px;border-radius:25px;border:none;background:#f0f2f5;color:#999;font-size:12px;cursor:pointer;">In gesprek</button>
-        <button class="status-filter-btn" onclick="setStatusFilter(this,'klant')" style="padding:7px 14px;border-radius:25px;border:none;background:#f0f2f5;color:#999;font-size:12px;cursor:pointer;">Klant</button>
-        <button class="status-filter-btn" onclick="setStatusFilter(this,'niet')" style="padding:7px 14px;border-radius:25px;border:none;background:#f0f2f5;color:#999;font-size:12px;cursor:pointer;">Niet geïnteresseerd</button>
-      </div>
-    </div>
-    <div class="filter-section">
       <div class="filter-label">VVEgemak</div>
       <div class="type-toggle">
         <button class="type-btn active" id="klant-all" onclick="setKlantFilter('all')">Alle</button>
@@ -563,13 +552,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
       <button class="s-btn" id="btn-bel"></button>
     </div>
     <div id="sidebar-info"></div>
-    <div id="status-sectie">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <div style="font-size:11px;color:#1d7a6e;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Status</div>
-        <div id="laatste-contact" style="font-size:11px;color:#999;"></div>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;" id="status-knoppen"></div>
-    </div>
+    <div id="status-sectie" style="display:none;"></div>
   <div id="flyer-sectie" style="display:none;margin:0 16px 10px;padding:14px 16px;background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div style="font-size:11px;color:#1d7a6e;font-weight:700;text-transform:uppercase;letter-spacing:1px;">✉ Flyer</div>
