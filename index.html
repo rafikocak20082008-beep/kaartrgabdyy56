@@ -1083,9 +1083,143 @@ function _kaartGlobeZoomAms() {
   const overlay   = document.getElementById('kaart-pin-overlay');
   const container = document.getElementById('container');
   const header    = document.getElementById('header');
-  overlay.style.display = 'none';
+  overlay.style.display   = 'none';
   container.style.opacity = '0';
-  header.style.opacity = '0';
+  header.style.opacity    = '0';
+
+  const W = window.innerWidth, H = window.innerHeight;
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+  // Zwart scherm als achtergrond terwijl THREE laadt
+  const bg = document.createElement('div');
+  bg.style.cssText = 'position:fixed;inset:0;z-index:999989;background:#000810;';
+  document.body.appendChild(bg);
+
+  const AMS_LON = 4.90  * Math.PI / 180;
+  const AMS_LAT = 52.37 * Math.PI / 180;
+
+  function startGlobe(THREE) {
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(W, H);
+    renderer.setPixelRatio(DPR);
+    renderer.domElement.style.cssText = 'position:fixed;inset:0;z-index:999990;';
+    document.body.appendChild(renderer.domElement);
+
+    const scene  = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
+    camera.position.z = 3.2;
+
+    // Belichting (zon van linksbovenaf)
+    scene.add(new THREE.AmbientLight(0x334466, 0.5));
+    const sun = new THREE.DirectionalLight(0xfff8ee, 1.5);
+    sun.position.set(-3, 2, 2); scene.add(sun);
+
+    const sphGeo = new THREE.SphereGeometry(1, 64, 64);
+    const loader  = new THREE.TextureLoader();
+    loader.crossOrigin = 'anonymous';
+
+    // Aarde (Blue Marble texture)
+    const earthMat = new THREE.MeshPhongMaterial({ specular: 0x222233, shininess: 20 });
+    const earth    = new THREE.Mesh(sphGeo, earthMat);
+    earth.rotation.y = -0.35; // start met Afrika/Europa zichtbaar
+    scene.add(earth);
+
+    loader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
+      t => { earthMat.map = t; earthMat.needsUpdate = true; });
+
+    // Wolken
+    let clouds = null;
+    loader.load('https://unpkg.com/three-globe/example/img/earth-clouds.png', t => {
+      const cMat = new THREE.MeshPhongMaterial({ map: t, transparent: true, opacity: 0.35, depthWrite: false });
+      clouds = new THREE.Mesh(new THREE.SphereGeometry(1.012, 48, 48), cMat);
+      clouds.rotation.y = earth.rotation.y;
+      scene.add(clouds);
+    });
+
+    // Atmosfeer glow
+    const atmMat = new THREE.MeshPhongMaterial({ color: 0x4488ff, transparent: true, opacity: 0.07, side: THREE.BackSide });
+    scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.08, 32, 32), atmMat));
+
+    // Amsterdam stip (kleine rode bol op het oppervlak)
+    const amsDot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.018, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xff3a2a })
+    );
+    const amsPos = new THREE.Vector3(
+      Math.cos(AMS_LAT) * Math.sin(AMS_LON),
+      Math.sin(AMS_LAT),
+      Math.cos(AMS_LAT) * Math.cos(AMS_LON)
+    ).multiplyScalar(1.015);
+    amsDot.position.copy(amsPos);
+    earth.add(amsDot); // koppel aan aarde zodat hij meedraait
+
+    const lerp  = (a,b,t) => a + (b - a) * t;
+    const clamp = (v,lo,hi) => Math.max(lo, Math.min(hi, v));
+    const ph    = (t,lo,hi) => clamp((t - lo) / (hi - lo), 0, 1);
+    const eio   = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+    const eIn   = t => t * t * t;
+
+    const DURATION   = 5500;
+    const TARGET_Y   = -AMS_LON;
+    const TARGET_X   = AMS_LAT * 0.35;  // lichte kanteling
+    const INIT_Y     = -0.35;
+    let t0 = null;
+
+    function animate(ts) {
+      if (!t0) t0 = ts;
+      const t  = Math.min((ts - t0) / DURATION, 1);
+
+      // Roteer aarde naar Amsterdam
+      const rp = eio(ph(t, 0.05, 0.52));
+      earth.rotation.y = lerp(INIT_Y, TARGET_Y, rp);
+      earth.rotation.x = lerp(0, TARGET_X, rp);
+      if (clouds) { clouds.rotation.y = earth.rotation.y + 0.02; clouds.rotation.x = earth.rotation.x; }
+
+      // Zoom in
+      camera.position.z = lerp(3.2, 1.5, eIn(ph(t, 0.35, 0.93)));
+
+      // Fade out
+      const fa = Math.max(0, 1 - ph(t, 0.84, 1.0) * 4);
+      renderer.domElement.style.opacity = fa;
+
+      renderer.render(scene, camera);
+
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        renderer.domElement.remove();
+        renderer.dispose();
+        bg.remove();
+        container.style.opacity = '1';
+        setTimeout(() => {
+          header.style.transition = 'opacity .8s ease';
+          header.style.opacity    = '1';
+          setTimeout(() => { header.style.transition = ''; }, 820);
+        }, 60);
+      }
+    }
+    requestAnimationFrame(animate);
+  }
+
+  // Laad THREE.js als het nog niet aanwezig is
+  if (window.THREE) {
+    startGlobe(window.THREE);
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/three@0.160.0/build/three.min.js';
+    s.onload = () => startGlobe(window.THREE);
+    s.onerror = () => { bg.remove(); container.style.opacity='1'; header.style.opacity='1'; };
+    document.head.appendChild(s);
+  }
+}
+
+function _kaartGlobeZoomAms_V1() {
+  const overlay   = document.getElementById('kaart-pin-overlay');
+  const container = document.getElementById('container');
+  const header    = document.getElementById('header');
+  overlay.style.display   = 'none';
+  container.style.opacity = '0';
+  header.style.opacity    = '0';
 
   const DPR = window.devicePixelRatio || 1;
   const W = window.innerWidth, H = window.innerHeight;
