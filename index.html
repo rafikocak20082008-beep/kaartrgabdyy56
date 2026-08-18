@@ -1175,20 +1175,28 @@ function renderLayers(data){
     updateTriggers: { getFillColor: flyerModus }
   });
 
+  const klantHaloLayer = new ScatterplotLayer({
+    id: 'klanten-halo', data: klantPunten,
+    getPosition: d=>[d.lng,d.lat],
+    getFillColor: [245,166,35,60],
+    getRadius: 20,
+    radiusUnits: 'pixels', radiusMinPixels: 14, radiusMaxPixels: 26,
+    stroked: false, pickable: false,
+  });
   const klantLayer = new ScatterplotLayer({
     id: 'klanten', data: klantPunten,
     getPosition: d=>[d.lng,d.lat],
     getFillColor: [245,166,35,255],
-    getRadius: 10,
-    radiusUnits: 'pixels', radiusMinPixels: 7, radiusMaxPixels: 14,
-    lineWidthMinPixels: 2, stroked: true,
+    getRadius: 11,
+    radiusUnits: 'pixels', radiusMinPixels: 8, radiusMaxPixels: 16,
+    lineWidthMinPixels: 2.5, stroked: true,
     getLineColor: [255,255,255,255],
-    pickable: true, autoHighlight: true, highlightColor: [255,200,50,255],
+    pickable: true, autoHighlight: true, highlightColor: [255,220,80,255],
     onClick: ({object})=>clickHandler(object),
     onHover: hoverHandler,
   });
 
-  const layers = [clusterLayer, tekstLayer, puntLayer, klantLayer].filter(Boolean);
+  const layers = [clusterLayer, tekstLayer, puntLayer, klantHaloLayer, klantLayer].filter(Boolean);
   if (gpsLat !== null) {
     layers.push(new ScatterplotLayer({
       id:'gps-ring', data:[{lat:gpsLat,lng:gpsLng}],
@@ -2563,6 +2571,7 @@ function pinControleer() {
 // ─────────────────────────────────────────────────────
 
 let gpsLat = null, gpsLng = null, gpsWatchId = null;
+
 let flyerNavIndex = 0;
 
 function startGPS() {
