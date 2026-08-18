@@ -444,6 +444,9 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   <button class="top-btn" id="export-top-btn" onclick="exporteerExcel()" title="Exporteer naar Excel">
     <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
   </button>
+  <button class="top-btn" id="uitlog-btn" onclick="uitloggen()" title="Uitloggen" style="font-size:18px;line-height:1;">
+    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+  </button>
 </div>
 
 <div id="filter-panel">
@@ -721,10 +724,11 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
       <div style="text-align:center;padding:20px 0 10px;">
         <div style="font-size:40px;margin-bottom:8px;">🎉</div>
         <div style="font-size:17px;font-weight:700;color:#222;margin-bottom:4px;">Sessie afgerond!</div>
-        <div id="flyer-klaar-samenvatting" style="font-size:13px;color:#888;"></div>
+        <div id="flyer-klaar-samenvatting" style="font-size:13px;color:#888;margin-bottom:6px;"></div>
+        <div id="flyer-klaar-tijd" style="font-size:15px;font-weight:700;color:#1d7a6e;background:rgba(29,122,110,0.08);border-radius:10px;padding:8px 14px;display:inline-block;margin-top:4px;"></div>
       </div>
       <div style="background:#fff;border-radius:14px;padding:16px;margin-top:12px;">
-        <div style="font-size:13px;font-weight:600;color:#444;margin-bottom:10px;">Hoe lang was je bezig?</div>
+        <div style="font-size:13px;font-weight:600;color:#444;margin-bottom:10px;">Klopt dit niet? Pas dan aan:</div>
         <div style="display:flex;gap:8px;align-items:center;">
           <input id="flyer-uur" type="number" min="0" max="12" value="1" style="width:60px;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:16px;text-align:center;outline:none;"> <span style="color:#888;">uur</span>
           <input id="flyer-min" type="number" min="0" max="59" value="0" style="width:60px;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:16px;text-align:center;outline:none;"> <span style="color:#888;">min</span>
@@ -1442,8 +1446,24 @@ function openSidebar(d){
     beheerderHtml;
   const huidigStatus=statussen[d.kvk]||'';
   const contact=contactData[d.kvk];
-  document.getElementById('laatste-contact').innerHTML=contact?.laatste?`<span style="background:#fff;padding:3px 8px;border-radius:10px;border:1px solid #eee;">📅 ${contact.laatste}</span>`:'';
-  document.getElementById('status-knoppen').innerHTML=Object.entries(STATUS).filter(([k])=>k!=='').map(([key,val])=>`<button onclick="setStatus('${d.kvk}','${key}')" style="padding:7px 14px;border-radius:25px;border:none;background:${key===huidigStatus?val.bg:'#f0f2f5'};color:${key===huidigStatus?val.tekst:'#999'};font-size:12px;font-weight:${key===huidigStatus?'700':'500'};cursor:pointer;">${val.label}</button>`).join('');
+}
+
+
+function markeerGeflyerd(d) {
+  if (!d) return;
+  const kvk = String(d.kvk);
+  if (!flyerData[kvk]) flyerData[kvk] = {};
+  const fd = flyerData[kvk];
+  const datum = new Date().toISOString().split('T')[0];
+  const bezoek = { datum, flyer: 'Handmatig' };
+  if (!fd.bezoek1) fd.bezoek1 = bezoek;
+  else if (!fd.bezoek2) fd.bezoek2 = bezoek;
+  else if (!fd.bezoek3) { fd.bezoek3 = bezoek; fd.klaar = true; fd.herstart = new Date(new Date(fd.bezoek1.datum).getTime()+365*24*60*60*1000).toISOString().split('T')[0]; }
+  localStorage.setItem('vve_flyer', JSON.stringify(flyerData));
+  syncFlyerNaarGitHub(kvk, fd);
+  const btn = document.querySelector('#flyer-sectie button');
+  if (btn) { btn.textContent = 'Opgeslagen!'; btn.style.background = '#27ae60'; setTimeout(() => { btn.textContent = '✓ Geflyerd vandaag'; btn.style.background = '#1d7a6e'; }, 2000); }
+  applyFilters();
 }
 
 function setStatus(kvk,status){
@@ -1454,9 +1474,6 @@ function setStatus(kvk,status){
     contactData[kvk].laatste=new Date().toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
     localStorage.setItem('vve_contact',JSON.stringify(contactData));
   }
-  document.getElementById('status-knoppen').innerHTML=Object.entries(STATUS).filter(([k])=>k!=='').map(([key,val])=>`<button onclick="setStatus('${kvk}','${key}')" style="padding:7px 14px;border-radius:25px;border:none;background:${key===status?val.bg:'#f0f2f5'};color:${key===status?val.tekst:'#999'};font-size:12px;font-weight:${key===status?'700':'500'};cursor:pointer;">${val.label}</button>`).join('');
-  const contact=contactData[kvk];
-  document.getElementById('laatste-contact').innerHTML=contact?.laatste?`<span style="background:#fff;padding:3px 8px;border-radius:10px;border:1px solid #eee;">📅 ${contact.laatste}</span>`:'';
   applyFilters();
 }
 
@@ -1760,11 +1777,10 @@ function exporteerExcel(){
   // Sorteer op geografische nabijheid (nearest neighbor)
   gefilterd = nearestNeighborSort(gefilterd);
 
-  const headers = ['#','VvE Naam','Straat','Nr','Postcode','Gemeente','Appartementen','Type','Beheerder','KvK','Status'];
+  const headers = ['#','VvE Naam','Straat','Nr','Postcode','Gemeente','Appartementen','Type','Beheerder','KvK'];
   const rows = gefilterd.map((d, i) => [
-    i+1, d.naam, d.straat, d.nr, d.postcode, d.gemeente, d.stadsdeel,
-    d.app, totaalFuncties(d)>=50?'Premium':'Basic', d.beheerder||'', d.kvk,
-    statussen[d.kvk] ? {nieuw:'Nieuw',benaderd:'Benaderd',gesprek:'In gesprek',klant:'Klant',niet:'Niet geïnteresseerd'}[statussen[d.kvk]] : ''
+    i+1, d.naam, d.straat, d.nr, d.postcode, d.gemeente,
+    totaalFuncties(d), totaalFuncties(d)>=50?'Premium':'Basic', d.beheerder||'', d.kvk
   ]);
 
   const csv = [headers, ...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
@@ -2239,9 +2255,15 @@ function flyerPuntKlik(idx) {
 function flyerSessieKlaar() {
   const n = flyerHuidigeRoute.length;
   const minuten = flyerSessieStart ? Math.round((Date.now()-flyerSessieStart)/60000) : 0;
+  const uur = Math.floor(minuten/60);
+  const min = minuten % 60;
+  const tijdTekst = uur > 0 ? `${uur} uur en ${min} min` : `${min} minuten`;
   document.getElementById('flyer-klaar-samenvatting').textContent = `${n} VvEs geflyerd in ${flyerGeselecteerdeBuurten.join(', ')}`;
-  document.getElementById('flyer-uur').value = Math.floor(minuten/60);
-  document.getElementById('flyer-min').value = minuten%60;
+  document.getElementById('flyer-uur').value = uur;
+  document.getElementById('flyer-min').value = min;
+  // Toon duidelijke tijdweergave in stap 6
+  const tijdEl = document.getElementById('flyer-klaar-tijd');
+  if (tijdEl) tijdEl.textContent = `Je hebt ${tijdTekst} geflyerd`;
   flyerNaarStap(6);
 }
 
@@ -2675,7 +2697,14 @@ function sluitFlyerPanel() {
   document.getElementById('flyer-panel').style.display = 'none';
   document.getElementById('flyer-nav-card').style.display = 'none';
   document.getElementById('header-logo').style.display = '';
+  const sb = document.getElementById('search-bar');
+  if (sb) sb.style.display = '';
+  const leg = document.getElementById('legenda');
+  if (leg) leg.style.display = '';
+  const tb = document.getElementById('top-btns');
+  if (tb) tb.style.display = '';
   flyerStartpunt = null;
+  clearInterval(_flyerTimerInterval);
   stopGPS();
   applyFilters();
 }
@@ -2778,8 +2807,9 @@ function maakFlyerRoute(lat, lng) {
 }
 
 function exportFlyerRoute() {
+  const route = flyerHuidigeRoute.length ? flyerHuidigeRoute : flyerRoute;
   const csv = [['#','VvE Naam','Straat','Nr','Postcode','Appartementen','Laatste flyer'],
-    ...flyerRoute.map((d,i) => [i+1, d.naam, d.straat, d.nr, d.postcode, d.app, flyerData[d.kvk]?.datum ? new Date(flyerData[d.kvk].datum).toLocaleDateString('nl-NL') : 'Nooit'])
+    ...route.map((d,i) => [i+1, d.naam, d.straat, d.nr, d.postcode, d.app, flyerData[d.kvk]?.bezoek1?.datum ? new Date(flyerData[d.kvk].bezoek1.datum).toLocaleDateString('nl-NL') : 'Nooit'])
   ].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));
