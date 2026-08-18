@@ -1121,7 +1121,7 @@ function renderLayers(data){
       }
       if(object && object.count === 1) openSidebar(object.items[0]);
       else if(object) {
-        deckgl.setProps({initialViewState:{longitude:object.lng,latitude:object.lat,zoom:huidigZoom+2,transitionDuration:500}});
+        viegNaar(object.lng, object.lat, huidigZoom+2, 500);
       }
       return true;
     },
@@ -1319,7 +1319,7 @@ function openSidebar(d){
   d.website = d.website || '';
   d.email = d.email || '';
   geselecteerdeVvE = d;
-  deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:500}});
+  viegNaar(d.lng, d.lat, 17, 500);
   document.getElementById('sidebar').classList.add('open');
     document.getElementById('search-bar').style.display='none';
   document.getElementById('legenda').style.display='none';
@@ -1561,8 +1561,8 @@ function gaNaarFavoriet(kvk) {
   const d = alleData.find(f => f.kvk === kvk);
   if(!d || !d.lat) return;
   document.getElementById('fav-popup').style.display = 'none';
-  deckgl.setProps({initialViewState:{longitude:d.lng, latitude:d.lat, zoom:17, transitionDuration:800}});
-  setTimeout(() => openSidebar(d), 900);
+  viegNaar(d.lng, d.lat, 17, 800);
+  setTimeout(() => openSidebar(d), 500);
 }
 
 function verwijderFavoriet(kvk) {
@@ -1651,18 +1651,27 @@ async function zoek(q){
   res.style.display='block';
 }
 
+function viegNaar(lng, lat, zoom, duur) {
+  const glMap = deckgl.getMapboxMap();
+  if (glMap) {
+    glMap.flyTo({ center: [parseFloat(lng), parseFloat(lat)], zoom: zoom || 15, duration: duur || 800, essential: true });
+  } else {
+    deckgl.setProps({ initialViewState: { longitude: parseFloat(lng), latitude: parseFloat(lat), zoom: zoom || 15, transitionDuration: duur || 800 } });
+  }
+}
+
 function viegNaarLocatie(lat, lng, naam) {
-  deckgl.setProps({initialViewState:{longitude:parseFloat(lng),latitude:parseFloat(lat),zoom:13,transitionDuration:800}});
+  viegNaar(lng, lat, 14);
   document.getElementById('search-results').style.display='none';
   document.getElementById('search-input').value=naam;
 }
 
 function selectResult(idx){
   const d=alleData[idx];
-  deckgl.setProps({initialViewState:{longitude:d.lng,latitude:d.lat,zoom:17,transitionDuration:800}});
   document.getElementById('search-results').style.display='none';
   document.getElementById('search-input').value='';
-  openSidebar(d);
+  viegNaar(d.lng, d.lat, 17);
+  setTimeout(() => openSidebar(d), 300);
 }
 
 function toonRecente(){}
@@ -2340,7 +2349,7 @@ function flyerToonRoute() {
 function flyerPuntKlik(idx) {
   const d = alleData[idx];
   if (!d) return;
-  deckgl.setProps({initialViewState:{longitude:d.lng,latitude:d.lat,zoom:17,transitionDuration:600}});
+  viegNaar(d.lng, d.lat, 17, 600);
   // Toon mini popup
   const info = document.getElementById('tooltip');
   document.getElementById('tooltip-name').textContent = d.naam;
