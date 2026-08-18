@@ -1096,8 +1096,8 @@ function _kaartGlobeZoomAms() {
 
   const AMS_LON  = 4.90  * Math.PI / 180;
   const AMS_LAT  = 52.37 * Math.PI / 180;
-  const INIT_ROT = 0.33;
-  const DURATION = 5400;
+  const INIT_ROT = -AMS_LON; // direct Amsterdam centraal
+  const DURATION = 3800;
 
   // Render 2×2 blokken op klein scherm voor snelheid
   const SCALE = W < 540 ? 2 : 1;
@@ -1216,7 +1216,7 @@ function _kaartGlobeZoomAms() {
     const maxR = Math.sqrt(W*W + H*H) * 1.12;
     const zp   = easeIn(ph(t, 0.38, 0.92));
     const gR   = lerp(minR, maxR, zp);
-    const rot  = lerp(INIT_ROT, -AMS_LON, eio(ph(t, 0.04, 0.46)));
+    const rot  = INIT_ROT; // geen rotatie, direct Amsterdam
     const gX   = W / 2;
     const gY   = lerp(H/2, H/2 + gR * Math.sin(AMS_LAT) * 0.75, easeIn(ph(t, 0.38, 0.92)));
     const fa   = Math.max(0, 1 - ph(t, 0.80, 1.0) * 5);
