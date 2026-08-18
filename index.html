@@ -1901,6 +1901,8 @@ let flyerGeselecteerdeBuurten = [];
 let flyerGekozeneFlyer = null;
 let flyerHuidigeRoute = [];
 let flyerSessieStart = null;
+let _flyerSessieSnapshot = {}; // snapshot van flyerData bij sessie-start
+let _flyerSessieOpgeslagen = false;
 let flyerHuidigeStap = 0;
 let flyerDelen = null;
 let flyerHuidigDeel = null;
@@ -2247,6 +2249,13 @@ function flyerSorteerRoute(vves, start) {
   flyerDelen = null;
   flyerHuidigDeel = 0;
   flyerSessieStart = Date.now();
+  _flyerSessieOpgeslagen = false;
+  // Snapshot: sla huidige staat op zodat we kunnen terugdraaien
+  _flyerSessieSnapshot = {};
+  flyerHuidigeRoute.forEach(d => {
+    const k = String(d.kvk);
+    _flyerSessieSnapshot[k] = flyerData[k] ? JSON.parse(JSON.stringify(flyerData[k])) : null;
+  });
   flyerNaarStap(5);
   flyerToonRoute();
   vraagPushToestemming();
@@ -2306,11 +2315,7 @@ function flyerMarkeerGedaan(kvk, idx) {
   if (!fd.bezoek1) fd.bezoek1 = nieuw;
   else if (!fd.bezoek2) fd.bezoek2 = nieuw;
   else if (!fd.bezoek3) fd.bezoek3 = nieuw;
-  localStorage.setItem('vve_flyer', JSON.stringify(flyerData));
-  syncFlyerNaarGitHub(kvkStr, flyerData[kvkStr]);
-
-  // Sla voortgang direct op in Firebase (ook zonder "Klaar")
-  flyerSlaVoortgangOp();
+  // Nog NIET opslaan — pas definitief bij "Opslaan & afsluiten"
 
   flyerToonRoute();
   applyFilters();
@@ -2485,10 +2490,11 @@ function flyerImportBackup(input) {
 }
 
 function flyerOpslaanTijd() {
+  _flyerSessieOpgeslagen = true;
   const uur = parseInt(document.getElementById('flyer-uur').value)||0;
   const min = parseInt(document.getElementById('flyer-min').value)||0;
   const datum = new Date().toISOString().split('T')[0];
-  // Sla bezoek op voor alle VvEs in route
+  // Sla bezoek op voor alle VvEs die in deze sessie zijn afgevinkt
   flyerHuidigeRoute.forEach(d => {
     const kvk = String(d.kvk);
     if (!flyerData[kvk]) flyerData[kvk] = {};
@@ -2886,7 +2892,23 @@ function toonFlyerOverzicht() {
   });
 }
 
+function flyerHerstelSnapshot() {
+  // Zet flyerData terug naar de staat voor deze sessie en sync naar Firebase
+  flyerHuidigeRoute.forEach(d => {
+    const k = String(d.kvk);
+    const oud = _flyerSessieSnapshot[k];
+    if (oud === null) delete flyerData[k];
+    else if (oud) flyerData[k] = oud;
+    // Sync terug naar Firebase + GitHub
+    syncFlyerNaarGitHub(k, flyerData[k] || null);
+  });
+  localStorage.setItem('vve_flyer', JSON.stringify(flyerData));
+}
+
 function sluitFlyerPanel() {
+  if (!_flyerSessieOpgeslagen && flyerHuidigeRoute.length > 0) {
+    flyerHerstelSnapshot();
+  }
   flyerModus = false;
   document.getElementById('flyer-btn').style.background = 'rgba(255,255,255,0.95)';
   document.getElementById('flyer-btn').style.color = '#333';
