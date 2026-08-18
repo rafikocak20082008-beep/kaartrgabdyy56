@@ -1088,12 +1088,162 @@ function _kaartGlobeZoomAms() {
   header.style.opacity    = '0';
 
   const W = window.innerWidth, H = window.innerHeight;
-  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const cvs = document.createElement('canvas');
+  cvs.width = W; cvs.height = H;
+  cvs.style.cssText = 'position:fixed;inset:0;z-index:999990;width:100%;height:100%;';
+  document.body.appendChild(cvs);
+  const ctx = cvs.getContext('2d');
 
-  // Zwart scherm als achtergrond terwijl THREE laadt
-  const bg = document.createElement('div');
-  bg.style.cssText = 'position:fixed;inset:0;z-index:999989;background:#000810;';
-  document.body.appendChild(bg);
+  const AMS_LON  = 4.90  * Math.PI / 180;
+  const AMS_LAT  = 52.37 * Math.PI / 180;
+  const INIT_ROT = 0.33;
+  const DURATION = 5400;
+
+  // Render 2×2 blokken op klein scherm voor snelheid
+  const SCALE = W < 540 ? 2 : 1;
+
+  // Texture laden
+  let texPixels = null, texW = 0, texH = 0;
+  const texImg = new Image();
+  texImg.crossOrigin = 'anonymous';
+  texImg.onload = () => {
+    const TW = 512, TH = 256;
+    const tc = document.createElement('canvas');
+    tc.width = TW; tc.height = TH;
+    const tctx = tc.getContext('2d');
+    tctx.drawImage(texImg, 0, 0, TW, TH);
+    const id = tctx.getImageData(0, 0, TW, TH);
+    texPixels = id.data; texW = TW; texH = TH;
+  };
+  texImg.src = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg';
+
+  function sampleTex(u, v) {
+    const tx = Math.floor(((u % 1) + 1) % 1 * texW);
+    const ty = Math.floor(Math.min(v, 0.9999) * texH);
+    const i  = (ty * texW + tx) * 4;
+    return [texPixels[i], texPixels[i+1], texPixels[i+2]];
+  }
+
+  const lerp   = (a,b,t) => a + (b-a)*t;
+  const clamp  = (v,lo,hi) => Math.max(lo, Math.min(hi, v));
+  const ph     = (t,lo,hi) => clamp((t-lo)/(hi-lo), 0, 1);
+  const easeIn = t => t*t*t;
+  const eio    = t => t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+
+  // Lichtrichting camera-ruimte (zon linksbovenaf)
+  const lx = -0.55, ly = 0.45, lz = 0.70;
+
+  function renderGlobe(rot, gX, gY, gR) {
+    const x0 = Math.max(0, Math.floor(gX - gR - 1));
+    const y0 = Math.max(0, Math.floor(gY - gR - 1));
+    const x1 = Math.min(W, Math.ceil(gX + gR + 1));
+    const y1 = Math.min(H, Math.ceil(gY + gR + 1));
+    const rw = x1 - x0, rh = y1 - y0;
+    if (rw <= 0 || rh <= 0) return;
+
+    const idata  = ctx.createImageData(rw, rh);
+    const pix    = idata.data;
+    const cosR   = Math.cos(rot), sinR = Math.sin(rot);
+
+    for (let py = 0; py < rh; py += SCALE) {
+      const dy  = (y0 + py - gY) / gR;
+      const dy2 = dy * dy;
+      if (dy2 >= 1) continue;
+      for (let px = 0; px < rw; px += SCALE) {
+        const dx = (x0 + px - gX) / gR;
+        const d2 = dx*dx + dy2;
+        if (d2 >= 1) continue;
+        const dz = Math.sqrt(1 - d2);
+
+        // Texture coordinaten via sferische projectie na rotatie
+        const wX = dx * cosR + dz * sinR;
+        const wY = -dy;
+        const wZ = -dx * sinR + dz * cosR;
+        const theta = Math.acos(Math.max(-1, Math.min(1, wY)));
+        const phi   = Math.atan2(wX, wZ);
+        const u = ((phi / (Math.PI * 2)) + 0.5 + 1) % 1;
+        const v = theta / Math.PI;
+
+        let r, g, b;
+        if (texPixels) {
+          [r, g, b] = sampleTex(u, v);
+        } else {
+          r = 18; g = 72; b = 150; // ocean fallback
+        }
+
+        // Phong belichting (camera-ruimte normaal = dx, -dy, dz)
+        const diff = Math.max(0, dx*lx + (-dy)*ly + dz*lz);
+        const lit  = 0.22 + diff * 0.78;
+
+        // Atmosfeer rand-gloed
+        const rim = (1 - dz); const rim4 = rim*rim*rim*rim;
+
+        r = Math.min(255, r * lit + rim4 * 28);
+        g = Math.min(255, g * lit + rim4 * 55);
+        b = Math.min(255, b * lit + rim4 * 120);
+
+        // Schrijf SCALE×SCALE blok
+        for (let sy = 0; sy < SCALE && py+sy < rh; sy++) {
+          for (let sx = 0; sx < SCALE && px+sx < rw; sx++) {
+            const i = ((py+sy)*rw + (px+sx)) * 4;
+            pix[i] = r; pix[i+1] = g; pix[i+2] = b; pix[i+3] = 255;
+          }
+        }
+      }
+    }
+    ctx.putImageData(idata, x0, y0);
+
+    // Atmosfeer gloed ring
+    const atm = ctx.createRadialGradient(gX, gY, gR*0.96, gX, gY, gR*1.24);
+    atm.addColorStop(0,   'rgba(80,170,255,0.32)');
+    atm.addColorStop(0.5, 'rgba(40,100,255,0.10)');
+    atm.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.beginPath(); ctx.arc(gX, gY, gR*1.24, 0, Math.PI*2);
+    ctx.fillStyle = atm; ctx.fill();
+  }
+
+  let t0 = null;
+  function frame(ts) {
+    if (!t0) t0 = ts;
+    const t = Math.min((ts - t0) / DURATION, 1);
+
+    // Achtergrond: nacht → daglicht bij zoom
+    const fe = ph(t, 0.80, 1.0);
+    ctx.fillStyle = `rgb(${Math.round(lerp(3,215,fe))},${Math.round(lerp(6,225,fe))},${Math.round(lerp(16,205,fe))})`;
+    ctx.fillRect(0, 0, W, H);
+
+    const minR = Math.min(W, H) * 0.28;
+    const maxR = Math.sqrt(W*W + H*H) * 1.12;
+    const zp   = easeIn(ph(t, 0.38, 0.92));
+    const gR   = lerp(minR, maxR, zp);
+    const rot  = lerp(INIT_ROT, -AMS_LON, eio(ph(t, 0.04, 0.46)));
+    const gX   = W / 2;
+    const gY   = lerp(H/2, H/2 + gR * Math.sin(AMS_LAT) * 0.75, easeIn(ph(t, 0.38, 0.92)));
+    const fa   = Math.max(0, 1 - ph(t, 0.80, 1.0) * 5);
+
+    ctx.globalAlpha = fa;
+    renderGlobe(rot, gX, gY, gR);
+    ctx.globalAlpha = 1;
+
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      cvs.remove();
+      container.style.opacity = '1';
+      setTimeout(() => {
+        header.style.transition = 'opacity .8s ease';
+        header.style.opacity    = '1';
+        setTimeout(() => { header.style.transition = ''; }, 820);
+      }, 60);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---- dode functies verwijderd ----
+
+function __dead_removed() {
+  // dead code removed
 
   const AMS_LON = 4.90  * Math.PI / 180;
   const AMS_LAT = 52.37 * Math.PI / 180;
