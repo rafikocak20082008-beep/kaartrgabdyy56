@@ -339,6 +339,9 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   </div>
 </div>
 
+<!-- Warp flash bij overgang intro → kaart -->
+<div id="warp-flash" style="display:none;position:fixed;inset:0;z-index:9999999;background:radial-gradient(ellipse at center,#a8ffe8 0%,#1dcaa8 40%,#03100e 100%);opacity:0;pointer-events:none;"></div>
+
 <style>
 @keyframes introLogo    { from{opacity:0;transform:scale(0.4) translateY(30px)} to{opacity:1;transform:scale(1) translateY(0)} }
 @keyframes introOmhoog  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
@@ -357,9 +360,22 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   100% { transform: perspective(900px) rotateX(-22deg) translateY(-110%) scale(0.88); opacity: 0; }
 }
 @keyframes kaartIn3D {
-  0%   { transform: perspective(900px) rotateX(14deg) translateY(80px) scale(0.96); opacity: 0; }
-  60%  { opacity: 1; }
-  100% { transform: perspective(900px) rotateX(0deg) translateY(0) scale(1); opacity: 1; }
+  0%   { transform: perspective(1400px) rotateX(52deg) translateY(-50px) scale(0.72); opacity: 0; filter: blur(10px) brightness(1.6); }
+  25%  { opacity: 0.7; filter: blur(3px) brightness(1.15); }
+  68%  { transform: perspective(1400px) rotateX(5deg) translateY(6px) scale(1.01); filter: blur(0px) brightness(1); }
+  82%  { transform: perspective(1400px) rotateX(-1.5deg) translateY(-2px) scale(1.005); opacity: 1; }
+  100% { transform: perspective(1400px) rotateX(0deg) translateY(0) scale(1); opacity: 1; filter: none; }
+}
+@keyframes globeZoomUit {
+  0%   { transform: scale(1); opacity: 1; filter: brightness(1); }
+  55%  { transform: scale(5); opacity: 0.9; filter: brightness(2.2) blur(2px); }
+  80%  { transform: scale(14); opacity: 0.3; filter: brightness(4) blur(6px); }
+  100% { transform: scale(22); opacity: 0; filter: brightness(5) blur(12px); }
+}
+@keyframes warpFlash {
+  0%   { opacity: 0; }
+  30%  { opacity: 0.85; }
+  100% { opacity: 0; }
 }
 @keyframes loginKaartIn  { from{opacity:0;transform:scale(0.88) translateY(24px)} to{opacity:1;transform:scale(1) translateY(0)} }
 @keyframes loginKaartUit { from{opacity:1;transform:scale(1) translateY(0)} to{opacity:0;transform:scale(0.92) translateY(-20px)} }
@@ -984,18 +1000,36 @@ function speelIntroAf() {
   }
   draw();
 
-  // Fade out na 3.5s
+  // Globe zoom-out overgang na 3.5s
   setTimeout(() => {
-    intro.style.transition = 'opacity 0.9s ease';
-    intro.style.opacity = '0';
-    setTimeout(() => {
-      intro.style.display = 'none';
-      cancelAnimationFrame(animId);
-      _introKlaar = true;
-      if (_fbGebruiker) {
+    if (_fbGebruiker) {
+      // Ingelogd: spectaculaire globe-zoom transitie
+      const flash = document.getElementById('warp-flash');
+      intro.style.transformOrigin = 'center center';
+      intro.style.animation = 'globeZoomUit 0.85s cubic-bezier(0.4,0,1,1) forwards';
+
+      // Flash op het piek moment
+      setTimeout(() => {
+        flash.style.display = 'block';
+        flash.style.animation = 'warpFlash 0.55s ease forwards';
+        setTimeout(() => { flash.style.display = 'none'; flash.style.animation = ''; }, 560);
+      }, 420);
+
+      setTimeout(() => {
+        intro.style.display = 'none';
+        intro.style.animation = '';
+        cancelAnimationFrame(animId);
+        _introKlaar = true;
         slideNaarKaart();
-      } else {
-        // Niet ingelogd — toon loginscherm met fade-in
+      }, 820);
+    } else {
+      // Niet ingelogd: gewone fade naar loginscherm
+      intro.style.transition = 'opacity 0.9s ease';
+      intro.style.opacity = '0';
+      setTimeout(() => {
+        intro.style.display = 'none';
+        cancelAnimationFrame(animId);
+        _introKlaar = true;
         const loginEl = document.getElementById('login-overlay');
         loginEl.style.opacity = '0';
         loginEl.style.display = 'flex';
@@ -1003,8 +1037,8 @@ function speelIntroAf() {
           loginEl.style.transition = 'opacity 0.5s ease';
           loginEl.style.opacity = '1';
         }, 30);
-      }
-    }, 900);
+      }, 900);
+    }
   }, 3500);
 }
 
@@ -1027,30 +1061,30 @@ function slideNaarKaart() {
 
 function _doeKaartSlide() {
   const container = document.getElementById('container');
-  // Zet beginpositie
   container.style.animation = 'none';
   container.style.opacity = '0';
-  container.style.transform = 'perspective(900px) rotateX(14deg) translateY(80px) scale(0.96)';
-  container.style.transformOrigin = 'center bottom';
+  container.style.transform = 'perspective(1400px) rotateX(52deg) translateY(-50px) scale(0.72)';
+  container.style.transformOrigin = 'center center';
+  container.style.filter = 'blur(10px) brightness(1.6)';
 
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    container.style.animation = 'kaartIn3D 0.75s cubic-bezier(0.22,1,0.36,1) forwards';
+    container.style.animation = 'kaartIn3D 1.1s cubic-bezier(0.22,1,0.36,1) forwards';
     setTimeout(() => {
       container.style.animation = '';
       container.style.transform = '';
       container.style.opacity = '';
       container.style.transformOrigin = '';
-    }, 800);
+      container.style.filter = '';
+    }, 1150);
   }));
 
-  // Header fade in iets later
   const header = document.getElementById('header');
   header.style.opacity = '0';
   setTimeout(() => {
-    header.style.transition = 'opacity 0.6s ease';
+    header.style.transition = 'opacity 0.7s ease';
     header.style.opacity = '1';
-    setTimeout(() => { header.style.transition = ''; }, 650);
-  }, 400);
+    setTimeout(() => { header.style.transition = ''; }, 720);
+  }, 500);
 }
 
 let _introKlaar = false;
