@@ -768,6 +768,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
         <div style="display:flex;gap:6px;align-items:center;">
           <div id="flyer-timer" style="background:rgba(29,122,110,0.1);color:#1d7a6e;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;">⏱ 0:00</div>
           <div id="flyer-route-badge" style="background:#1d7a6e;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;"></div>
+          <button onclick="toggleSwipeModus()" id="swipe-toggle-btn" title="Swipe modus" style="background:#fff;border:1.5px solid #1d7a6e;color:#1d7a6e;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;cursor:pointer;">🃏 Swipe</button>
         </div>
       </div>
       <div id="flyer-route-info" style="background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:12px;color:#666;"></div>
@@ -2200,26 +2201,37 @@ function flyerBevestigBuurten() {
 
 function flyerKiesFlyer(type, el) {
   flyerGekozeneFlyer = type;
-  document.querySelectorAll('.flyer-type-btn').forEach(b => b.style.borderColor='#e0e0e0');
-  if(el) el.style.borderColor = '#1d7a6e';
-  flyerBouwRoute();
+  document.querySelectorAll('.flyer-type-btn').forEach(b => { b.style.borderColor='#e0e0e0'; b.style.opacity='0.6'; b.disabled=true; });
+  if(el) { el.style.borderColor='#1d7a6e'; el.style.opacity='1'; }
+  const orig = el ? el.innerHTML : '';
+  if(el) el.innerHTML = '<div style="font-weight:700;color:#1d7a6e;">⏳ Route bepalen...</div>';
+  flyerBouwRoute(() => {
+    document.querySelectorAll('.flyer-type-btn').forEach(b => { b.style.opacity='1'; b.disabled=false; });
+    if(el) el.innerHTML = orig;
+  });
 }
 
-function flyerBouwRoute() {
+function flyerBouwRoute(klaar) {
   const vves = flyerGekozeBuurtItem
     ? flyerGekozeBuurtItem.vves
     : alleData.filter(d => !d.klant && d.lat && d.lng && flyerGeselecteerdeBuurten.includes(d.buurt) &&
         (flyerType==='basic' ? d.totaal < 50 : d.totaal >= 50));
-  if (!vves.length) return;
+  if (!vves.length) {
+    if(klaar) klaar();
+    alert('Geen VvEs gevonden voor deze selectie.');
+    return;
+  }
   const centLat = vves.reduce((s,d)=>s+d.lat,0)/vves.length;
   const centLng = vves.reduce((s,d)=>s+d.lng,0)/vves.length;
-  let start = {lat:centLat, lng:centLng};
+  const start = {lat:centLat, lng:centLng};
+  const doRoute = (s) => { if(klaar) klaar(); flyerSorteerRoute(vves, s); };
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
-      pos => flyerSorteerRoute(vves, {lat:pos.coords.latitude, lng:pos.coords.longitude}),
-      () => flyerSorteerRoute(vves, start)
+      pos => doRoute({lat:pos.coords.latitude, lng:pos.coords.longitude}),
+      () => doRoute(start),
+      {timeout: 4000, maximumAge: 60000}
     );
-  } else { flyerSorteerRoute(vves, start); }
+  } else { doRoute(start); }
 }
 
 function flyerSorteerRoute(vves, start) {
@@ -3010,6 +3022,194 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   });
 }
+</script>
+
+<!-- Swipe modus overlay -->
+<div id="swipe-overlay" style="display:none;position:fixed;inset:0;z-index:9500;background:linear-gradient(160deg,#0f2027,#1d7a6e 60%,#2aa090);flex-direction:column;align-items:center;justify-content:center;">
+  <!-- Header -->
+  <div style="position:absolute;top:0;left:0;right:0;padding:20px 20px 0;display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <div id="swipe-teller" style="color:#fff;font-size:13px;font-weight:700;opacity:0.8;"></div>
+      <div id="swipe-voortgang-wrap" style="background:rgba(255,255,255,0.2);border-radius:99px;height:4px;width:180px;margin-top:6px;overflow:hidden;">
+        <div id="swipe-voortgang-balk" style="height:100%;background:#fff;border-radius:99px;transition:width 0.3s;width:0%;"></div>
+      </div>
+    </div>
+    <button onclick="toggleSwipeModus()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:38px;height:38px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
+  </div>
+
+  <!-- Kaart-stapel -->
+  <div id="swipe-stapel" style="position:relative;width:300px;height:380px;margin-top:30px;"></div>
+
+  <!-- Labels -->
+  <div style="display:flex;gap:60px;margin-top:28px;align-items:center;">
+    <div style="text-align:center;opacity:0.6;">
+      <div style="font-size:32px;">⏭</div>
+      <div style="color:#fff;font-size:12px;font-weight:700;margin-top:4px;">Overslaan</div>
+    </div>
+    <div style="text-align:center;opacity:0.6;">
+      <div style="font-size:32px;">✉️</div>
+      <div style="color:#fff;font-size:12px;font-weight:700;margin-top:4px;">Geflyerd</div>
+    </div>
+  </div>
+  <div style="color:rgba(255,255,255,0.5);font-size:12px;margin-top:16px;">← sleep of gebruik pijltjestoetsen →</div>
+</div>
+
+<style>
+.swipe-card {
+  position:absolute;inset:0;background:#fff;border-radius:24px;
+  padding:28px 24px;box-shadow:0 20px 60px rgba(0,0,0,0.35);
+  cursor:grab;user-select:none;touch-action:none;
+  transition:transform 0.08s ease,box-shadow 0.08s ease;
+  display:flex;flex-direction:column;justify-content:space-between;
+}
+.swipe-card.animating {
+  transition:transform 0.38s cubic-bezier(0.4,0,0.2,1),opacity 0.38s ease !important;
+}
+.swipe-hint-links  { background:rgba(231,76,60,0.12)!important; }
+.swipe-hint-rechts { background:rgba(39,174,96,0.12)!important; }
+</style>
+
+<script>
+let _swipeModus = false;
+let _swipeIndex = 0;
+let _swipeRij = [];
+let _swipeDragging = false;
+let _swipeStartX = 0;
+let _swipeStartY = 0;
+let _swipeDeltaX = 0;
+let _swipeKaart = null;
+
+function toggleSwipeModus() {
+  _swipeModus = !_swipeModus;
+  const overlay = document.getElementById('swipe-overlay');
+  const btn = document.getElementById('swipe-toggle-btn');
+  if (_swipeModus) {
+    _swipeRij = flyerHuidigeRoute.filter(d => !flyerData[String(d.kvk)]?.bezoek1);
+    if (!_swipeRij.length) { _swipeModus = false; alert('Alle VvEs zijn al geflyerd!'); return; }
+    _swipeIndex = 0;
+    overlay.style.display = 'flex';
+    btn.style.background = '#1d7a6e'; btn.style.color = '#fff';
+    _swipeBouwStapel();
+  } else {
+    overlay.style.display = 'none';
+    btn.style.background = '#fff'; btn.style.color = '#1d7a6e';
+  }
+}
+
+function _swipeBouwStapel() {
+  const stapel = document.getElementById('swipe-stapel');
+  stapel.innerHTML = '';
+  const todo = _swipeRij.slice(_swipeIndex, _swipeIndex + 3);
+  if (!todo.length) { _swipeKlaar(); return; }
+
+  const totaal = _swipeRij.length;
+  const gedaan = _swipeIndex;
+  document.getElementById('swipe-teller').textContent = `${gedaan} van ${totaal} gedaan`;
+  document.getElementById('swipe-voortgang-balk').style.width = (gedaan/totaal*100) + '%';
+
+  // Achterste kaarten eerst (laag z-index)
+  todo.slice().reverse().forEach((d, ri) => {
+    const i = todo.length - 1 - ri;
+    const el = document.createElement('div');
+    el.className = 'swipe-card';
+    el.style.zIndex = i + 1;
+    el.style.transform = `scale(${1 - (todo.length-1-i)*0.04}) translateY(${(todo.length-1-i)*12}px)`;
+    el.style.opacity = i === todo.length-1 ? '1' : (0.7 - (todo.length-1-i)*0.15);
+
+    if (i === todo.length - 1) {
+      // Bovenste kaart: interactief
+      const kleur = d.klant ? '#f5a623' : d.totaal >= 50 ? '#1d7a6e' : '#7bc67e';
+      const type = d.totaal >= 50 ? 'Premium' : 'Basic';
+      el.innerHTML = `
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+            <div style="width:14px;height:14px;border-radius:50%;background:${kleur};box-shadow:0 2px 8px rgba(0,0,0,0.2);flex-shrink:0;"></div>
+            <span style="font-size:11px;font-weight:700;color:${kleur};text-transform:uppercase;letter-spacing:0.8px;">${type}</span>
+          </div>
+          <div style="font-size:22px;font-weight:900;color:#111;line-height:1.2;margin-bottom:8px;">${d.naam}</div>
+          <div style="font-size:14px;color:#666;margin-bottom:4px;">📍 ${d.straat} ${d.nr}</div>
+          <div style="font-size:13px;color:#aaa;">${d.postcode} · ${d.app} app.</div>
+        </div>
+        <div>
+          <div style="display:flex;gap:10px;margin-bottom:12px;">
+            <div style="flex:1;background:#f7f9f8;border-radius:12px;padding:12px;text-align:center;">
+              <div style="font-size:18px;font-weight:800;color:#222;">${d.app||0}</div>
+              <div style="font-size:10px;color:#aaa;margin-top:2px;">appartementen</div>
+            </div>
+            <div style="flex:1;background:#f7f9f8;border-radius:12px;padding:12px;text-align:center;">
+              <div style="font-size:18px;font-weight:800;color:#222;">${d.kvk||'—'}</div>
+              <div style="font-size:10px;color:#aaa;margin-top:2px;">KvK</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="_swipeActie('links')" style="flex:1;padding:14px;border-radius:14px;border:2px solid #eee;background:#fff;font-size:20px;cursor:pointer;">⏭</button>
+            <button onclick="_swipeActie('rechts')" style="flex:1;padding:14px;border-radius:14px;border:none;background:#1d7a6e;font-size:20px;cursor:pointer;">✉️</button>
+          </div>
+        </div>`;
+      _swipeBindDrag(el, d);
+      _swipeKaart = el;
+    }
+    stapel.appendChild(el);
+  });
+}
+
+function _swipeBindDrag(el, d) {
+  const onStart = (cx) => { _swipeDragging=true; _swipeStartX=cx; _swipeDeltaX=0; el.style.transition='none'; };
+  const onMove = (cx) => {
+    if(!_swipeDragging) return;
+    _swipeDeltaX = cx - _swipeStartX;
+    const rot = _swipeDeltaX * 0.12;
+    el.style.transform = `translateX(${_swipeDeltaX}px) rotate(${rot}deg)`;
+    el.classList.toggle('swipe-hint-rechts', _swipeDeltaX > 40);
+    el.classList.toggle('swipe-hint-links', _swipeDeltaX < -40);
+  };
+  const onEnd = () => {
+    if(!_swipeDragging) return;
+    _swipeDragging = false;
+    if(_swipeDeltaX > 80) _swipeActie('rechts');
+    else if(_swipeDeltaX < -80) _swipeActie('links');
+    else { el.style.transition='transform 0.3s cubic-bezier(0.22,1,0.36,1)'; el.style.transform=''; el.classList.remove('swipe-hint-rechts','swipe-hint-links'); }
+  };
+  el.addEventListener('mousedown', e => onStart(e.clientX));
+  window.addEventListener('mousemove', e => { if(_swipeDragging) onMove(e.clientX); });
+  window.addEventListener('mouseup', onEnd);
+  el.addEventListener('touchstart', e => onStart(e.touches[0].clientX), {passive:true});
+  el.addEventListener('touchmove', e => onMove(e.touches[0].clientX), {passive:true});
+  el.addEventListener('touchend', onEnd);
+}
+
+function _swipeActie(richting) {
+  if(!_swipeKaart) return;
+  const el = _swipeKaart;
+  const d = _swipeRij[_swipeIndex];
+  el.classList.add('animating');
+  el.classList.remove('swipe-hint-rechts','swipe-hint-links');
+  el.style.transform = richting==='rechts'
+    ? 'translateX(500px) rotate(25deg)' : 'translateX(-500px) rotate(-25deg)';
+  el.style.opacity = '0';
+  if(richting === 'rechts') flyerMarkeerGedaan(String(d.kvk), alleData.indexOf(d));
+  _swipeIndex++;
+  setTimeout(() => _swipeBouwStapel(), 350);
+}
+
+function _swipeKlaar() {
+  document.getElementById('swipe-stapel').innerHTML = `
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;">
+      <div style="font-size:56px;margin-bottom:12px;">🎉</div>
+      <div style="font-size:20px;font-weight:800;margin-bottom:8px;">Alles gedaan!</div>
+      <div style="font-size:14px;opacity:0.7;">Swipe modus afgerond</div>
+      <button onclick="toggleSwipeModus()" style="margin-top:24px;padding:14px 28px;border-radius:14px;border:none;background:#fff;color:#1d7a6e;font-size:15px;font-weight:700;cursor:pointer;">Terug naar lijst</button>
+    </div>`;
+  document.getElementById('swipe-teller').textContent = 'Alles geflyerd! 🎉';
+  document.getElementById('swipe-voortgang-balk').style.width = '100%';
+}
+
+document.addEventListener('keydown', e => {
+  if(!_swipeModus) return;
+  if(e.key==='ArrowRight') _swipeActie('rechts');
+  if(e.key==='ArrowLeft') _swipeActie('links');
+  if(e.key==='Escape') toggleSwipeModus();
+});
 </script>
 </body>
 </html>
