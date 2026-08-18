@@ -1088,11 +1088,117 @@ function _kaartGlobeZoomAms() {
   header.style.opacity    = '0';
 
   const W = window.innerWidth, H = window.innerHeight;
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const cvs = document.createElement('canvas');
+  cvs.width = W * DPR; cvs.height = H * DPR;
+  cvs.style.cssText = 'position:fixed;inset:0;z-index:999990;width:100%;height:100%;background:#000;';
+  document.body.appendChild(cvs);
+  const ctx = cvs.getContext('2d');
+  ctx.scale(DPR, DPR);
 
-  // Scene
-  const scene = document.createElement('div');
-  scene.style.cssText = 'position:fixed;inset:0;z-index:999990;overflow:hidden;background:#000;';
-  document.body.appendChild(scene);
+  // Genereer stadslichten — meer dichtheid in het midden
+  const N = 520;
+  const lights = Array.from({ length: N }, () => {
+    const angle  = Math.random() * Math.PI * 2;
+    const radius = Math.pow(Math.random(), 0.55) * Math.min(W, H) * 0.52;
+    const warm   = Math.random();
+    return {
+      x:     W / 2 + Math.cos(angle) * radius * (0.7 + Math.random() * 0.6),
+      y:     H / 2 + Math.sin(angle) * radius * 0.55,
+      r:     0.6 + Math.random() * 1.6,
+      delay: Math.random() * 0.55,
+      color: warm > 0.6
+        ? `rgba(255,${Math.round(200 + Math.random()*55)},${Math.round(80 + Math.random()*80)},`
+        : warm > 0.2
+        ? `rgba(255,255,${Math.round(180 + Math.random()*75)},`
+        : `rgba(${Math.round(180+Math.random()*75)},${Math.round(210+Math.random()*45)},255,`,
+      pulse: 0.8 + Math.random() * 0.4,
+      phase: Math.random() * Math.PI * 2,
+    };
+  });
+
+  const DURATION = 4200;
+  let t0 = null;
+  const lerp  = (a,b,t) => a+(b-a)*t;
+  const clamp = (v,lo,hi) => Math.max(lo,Math.min(hi,v));
+  const ph    = (t,lo,hi) => clamp((t-lo)/(hi-lo),0,1);
+  const eio   = t => t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+
+  function frame(ts) {
+    if (!t0) t0 = ts;
+    const t = Math.min((ts - t0) / DURATION, 1);
+    const sec = (ts - t0) / 1000;
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+
+    // Subtiele nevelsluier over de stad
+    const fog = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.min(W,H)*0.5);
+    fog.addColorStop(0, `rgba(255,200,100,${0.04 * ph(t,0.1,0.7)})`);
+    fog.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = fog; ctx.fillRect(0, 0, W, H);
+
+    // Teken elk lichtje
+    lights.forEach(l => {
+      const appear = ph(t, l.delay, l.delay + 0.35);
+      if (appear <= 0) return;
+      const flicker = l.pulse + 0.15 * Math.sin(sec * 3.1 + l.phase);
+      const alpha   = appear * flicker;
+      const glow    = l.r * (2.5 + 1.5 * Math.sin(sec * 2 + l.phase));
+
+      // Glow halo
+      const g = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, glow * 3);
+      g.addColorStop(0, l.color + (alpha * 0.55) + ')');
+      g.addColorStop(1, l.color + '0)');
+      ctx.beginPath(); ctx.arc(l.x, l.y, glow * 3, 0, Math.PI * 2);
+      ctx.fillStyle = g; ctx.fill();
+
+      // Kern
+      ctx.beginPath(); ctx.arc(l.x, l.y, l.r * flicker, 0, Math.PI * 2);
+      ctx.fillStyle = l.color + alpha + ')'; ctx.fill();
+    });
+
+    // Amsterdam label
+    const lblAlpha = ph(t, 0.35, 0.6) * (1 - ph(t, 0.72, 0.85));
+    if (lblAlpha > 0) {
+      ctx.save();
+      ctx.font = `300 ${Math.round(W * 0.055)}px -apple-system,sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.letterSpacing = '6px';
+      ctx.fillStyle = `rgba(255,230,160,${lblAlpha * 0.9})`;
+      ctx.fillText('AMSTERDAM', W/2, H/2 + Math.min(W,H)*0.3);
+      ctx.font = `300 ${Math.round(W * 0.028)}px -apple-system,sans-serif`;
+      ctx.fillStyle = `rgba(255,210,120,${lblAlpha * 0.55})`;
+      ctx.fillText('52°N · 4°E', W/2, H/2 + Math.min(W,H)*0.3 + Math.round(W*0.055) * 1.2);
+      ctx.restore();
+    }
+
+    // Fade naar wit/kaart
+    const fadeOut = ph(t, 0.82, 1.0);
+    if (fadeOut > 0) {
+      ctx.fillStyle = `rgba(215,225,205,${eio(fadeOut)})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      cvs.remove();
+      container.style.opacity = '1';
+      setTimeout(() => {
+        header.style.transition = 'opacity .8s ease';
+        header.style.opacity    = '1';
+        setTimeout(() => { header.style.transition = ''; }, 820);
+      }, 60);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function __old_drone_unused() {
+  const _x = null; // dead
+
+  const W2 = window.innerWidth, H2 = window.innerHeight;
 
   // 3×3 raster ESRI satelliet-tegels, zoom 10, Amsterdam centrum
   // Tile coördinaten: x=525, y=337
