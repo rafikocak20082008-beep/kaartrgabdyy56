@@ -487,8 +487,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 </div>
 
 <div id="top-btns">
-  <button class="top-btn" id="btn-3d" onclick="toggle3D()" title="3D klanten" style="font-size:13px;font-weight:800;">3D</button>
-  <button class="top-btn" id="dark-btn" onclick="toggleDarkMode()" title="Donkere modus">
+<button class="top-btn" id="dark-btn" onclick="toggleDarkMode()" title="Donkere modus">
     <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
   </button>
   <button class="top-btn" id="flyer-btn" onclick="toggleFlyerModus()" title="Flyer modus">
@@ -1094,7 +1093,6 @@ function getRadius(app){ return app>=50 ? 8 : 6; }
 
 let huidigZoom = 11;
 let darkMode = false;
-let modus3D = false;
 
 // Buurt-index uitgesteld bouwen zodat de kaart eerst laadt
 let buurten = [];
@@ -1115,17 +1113,6 @@ setTimeout(() => {
   Object.values(buurtIndex).forEach(b => { if(b.n>0){ b.lat/=b.n; b.lng/=b.n; } });
   buurten = Object.values(buurtIndex).filter(b=>b.n>0);
 }, 500);
-
-function toggle3D() {
-  modus3D = !modus3D;
-  const btn = document.getElementById('btn-3d');
-  btn.classList.toggle('active', modus3D);
-  const glMap = deckgl.getMapboxMap();
-  if (glMap) {
-    glMap.easeTo({ pitch: modus3D ? 50 : 0, bearing: modus3D ? -15 : 0, duration: 700 });
-  }
-  applyFilters();
-}
 
 function toggleDarkMode(){
   darkMode = !darkMode;
@@ -1267,27 +1254,7 @@ function renderLayers(data){
     onHover: hoverHandler,
   });
 
-  const klantKolomLayer = modus3D ? new ColumnLayer({
-    id: 'klanten-kolom', data: klantPunten,
-    getPosition: d=>[d.lng,d.lat],
-    getFillColor: d => {
-      const h = Math.min(d.totaal / 200, 1);
-      return [245, Math.round(166 - h*60), Math.round(35 + h*80), 220];
-    },
-    getElevation: d => Math.max(d.totaal * 3, 40),
-    radius: 12,
-    diskResolution: 8,
-    elevationScale: 1,
-    extruded: true,
-    pickable: true,
-    autoHighlight: true,
-    highlightColor: [255, 220, 80, 255],
-    material: { ambient: 0.35, diffuse: 0.8, shininess: 32, specularColor: [255,220,100] },
-    onClick: ({object,x,y})=>clickHandler(object,x,y),
-    onHover: hoverHandler,
-  }) : null;
-
-  const layers = [clusterLayer, tekstLayer, puntLayer, klantHaloLayer, modus3D ? null : klantLayer, klantKolomLayer].filter(Boolean);
+  const layers = [clusterLayer, tekstLayer, puntLayer, klantHaloLayer, klantLayer].filter(Boolean);
   if (gpsLat !== null) {
     layers.push(new ScatterplotLayer({
       id:'gps-ring', data:[{lat:gpsLat,lng:gpsLng}],
