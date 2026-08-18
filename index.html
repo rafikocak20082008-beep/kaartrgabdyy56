@@ -398,16 +398,12 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   <div id="keuze-lijst"></div>
 </div>
 
-<!-- Tegel-flip overlay bij VvE klik -->
-<div id="vve-flip-wrap" style="position:fixed;pointer-events:none;z-index:8000;display:none;">
-  <div id="vve-flip-inner" style="width:120px;height:60px;position:relative;transform-style:preserve-3d;transition:transform 0.42s cubic-bezier(0.4,0,0.2,1);">
-    <!-- Voorkant: gekleurde stip -->
-    <div id="vve-flip-front" style="position:absolute;inset:0;backface-visibility:hidden;border-radius:50%;width:24px;height:24px;top:18px;left:48px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.25);"></div>
-    <!-- Achterkant: naam kaartje -->
-    <div id="vve-flip-back" style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);background:#fff;border-radius:14px;padding:10px 14px;box-shadow:0 12px 40px rgba(0,0,0,0.22);display:flex;flex-direction:column;justify-content:center;min-width:160px;">
-      <div id="vve-flip-naam" style="font-size:12px;font-weight:800;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;"></div>
-      <div id="vve-flip-adres" style="font-size:10px;color:#999;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;"></div>
-    </div>
+<!-- VvE klik popup: rijst op vanuit de kaart -->
+<div id="vve-flip-wrap" style="position:fixed;pointer-events:none;z-index:8000;display:none;perspective:500px;">
+  <div id="vve-flip-card" style="background:#fff;border-radius:14px;padding:10px 16px;box-shadow:0 16px 40px rgba(0,0,0,0.22);min-width:160px;max-width:220px;transform-origin:bottom center;">
+    <div id="vve-flip-kleur" style="width:10px;height:10px;border-radius:50%;display:inline-block;margin-bottom:4px;vertical-align:middle;margin-right:6px;"></div>
+    <div id="vve-flip-naam" style="font-size:13px;font-weight:800;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+    <div id="vve-flip-adres" style="font-size:11px;color:#999;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
   </div>
 </div>
 
@@ -1748,35 +1744,40 @@ function toonRecente(){}
 
 function tegelFlip(d, x, y, callback) {
   const wrap = document.getElementById('vve-flip-wrap');
-  const inner = document.getElementById('vve-flip-inner');
-  const front = document.getElementById('vve-flip-front');
-  const naam = document.getElementById('vve-flip-naam');
-  const adres = document.getElementById('vve-flip-adres');
-
+  const card = document.getElementById('vve-flip-card');
   const kleur = d.klant ? '#f5a623' : d.totaal >= 50 ? '#1d7a6e' : '#7bc67e';
-  front.style.background = `radial-gradient(circle at 35% 35%, ${d.klant?'#ffd080':d.totaal>=50?'#3aaa96':'#a8e6a8'}, ${kleur})`;
-  naam.textContent = d.naam;
-  adres.textContent = d.straat + ' ' + d.nr;
 
-  // Positioneer zodat de voorkant-stip precies op de klikplek zit
-  wrap.style.left = (x - 60) + 'px';
-  wrap.style.top = (y - 30) + 'px';
+  document.getElementById('vve-flip-kleur').style.background = kleur;
+  document.getElementById('vve-flip-naam').textContent = d.naam;
+  document.getElementById('vve-flip-adres').textContent = d.straat + ' ' + d.nr;
+
+  // Kaartje net boven de klikplek
+  wrap.style.left = (x - 80) + 'px';
+  wrap.style.top = (y - 80) + 'px';
   wrap.style.display = 'block';
-  inner.style.transition = 'none';
-  inner.style.transform = 'rotateY(0deg)';
 
-  // Start flip na 1 frame
+  // Begin: plat (alsof het in de kaart ligt), klein en doorzichtig
+  card.style.transition = 'none';
+  card.style.transform = 'rotateX(80deg) scale(0.6)';
+  card.style.opacity = '0';
+
+  // Rijs op
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    inner.style.transition = 'transform 0.42s cubic-bezier(0.4,0,0.2,1)';
-    inner.style.transform = 'rotateY(180deg)';
+    card.style.transition = 'transform 0.38s cubic-bezier(0.22,1,0.36,1), opacity 0.22s ease';
+    card.style.transform = 'rotateX(0deg) scale(1)';
+    card.style.opacity = '1';
   }));
 
-  // Na flip: open sidebar en verberg overlay
+  // Na animatie: verberg en open sidebar
   setTimeout(() => {
-    wrap.style.display = 'none';
-    inner.style.transform = 'rotateY(0deg)';
-    callback();
-  }, 480);
+    card.style.transition = 'transform 0.2s ease, opacity 0.15s ease';
+    card.style.transform = 'rotateX(-20deg) scale(0.9) translateY(-8px)';
+    card.style.opacity = '0';
+    setTimeout(() => {
+      wrap.style.display = 'none';
+      callback();
+    }, 180);
+  }, 460);
 }
 function setType(type){
   filters.type=type;
