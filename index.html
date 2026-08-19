@@ -465,7 +465,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   <div id="search-box">
     <svg id="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="cursor:pointer;" onclick="zoekEnGa(document.getElementById('search-input').value || document.getElementById('search-input').placeholder)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input id="search-input" type="text" placeholder="Zoek VvE naam, straat, buurt..."
-      oninput="zoek(this.value)" onclick="this.select()" onkeydown="if(event.key==='Enter')zoekEnGa(this.value);"
+      oninput="zoek(this.value);filters.naam=this.value.trim();applyFiltersDebounced();" onclick="this.select()"
       onfocus="if(!this.value)toonRecente();else zoek(this.value)"
       onblur="setTimeout(()=>{document.getElementById('search-results').style.display='none';},200)"
       onkeydown="if(event.key==='Enter'){zoekEnGa(this.value);}">
@@ -567,12 +567,6 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
     <button id="filter-close" onclick="toggleFilters()">×</button>
   </div>
   <div id="filter-body">
-    <div class="filter-section">
-      <div class="filter-label">VvE naam</div>
-      <input id="f-naam-input" type="text" placeholder="Bijv. Prinsengracht..."
-        style="width:100%;padding:10px 12px;border:1.5px solid #e8e8e8;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;"
-        oninput="filters.naam=this.value.trim();applyFiltersDebounced();">
-    </div>
     <div class="filter-section">
       <div class="filter-label">Type VvE</div>
       <div class="type-toggle">
@@ -2320,7 +2314,7 @@ function applyFilters(){
   const _chipsEl = document.getElementById('filter-chips');
   if(_chipsEl){
     const _chips = [];
-    if(filters.naam) _chips.push({label:'📝 '+filters.naam, clear:()=>{filters.naam='';document.getElementById('f-naam-input').value='';applyFilters();}});
+    if(filters.naam) _chips.push({label:'🔍 '+filters.naam, clear:()=>{filters.naam='';document.getElementById('search-input').value='';applyFilters();}});
     if(filters.minApp>0||filters.maxApp<2000) _chips.push({label:`${filters.minApp}–${filters.maxApp} app`, clear:()=>{filters.minApp=0;filters.maxApp=2000;window.setSliderValues(0,2000);applyFilters();}});
     if(filters.stadsdeel) _chips.push({label:filters.stadsdeel.charAt(0)+filters.stadsdeel.slice(1).toLowerCase(), clear:()=>{filters.stadsdeel='';document.querySelectorAll('.stadsdeel-btn').forEach((b,i)=>b.classList.toggle('active',i===0));applyFilters();}});
     if(filters.beheerder) _chips.push({label:'🏢 '+filters.beheerder, clear:()=>{filters.beheerder='';document.getElementById('f-beheerder-input').value='';applyFilters();}});
@@ -2931,7 +2925,7 @@ function _chipClear(i){ window._filterChipActions && window._filterChipActions[i
 
 function resetFilters(){
   filters={type:'all',minApp:0,maxApp:2000,beheerder:'',stadsdeel:'',status:'',klant:'all',internBeheerder:'',naam:''};
-  const naamEl=document.getElementById('f-naam-input'); if(naamEl) naamEl.value='';
+  const naamEl=document.getElementById('search-input'); if(naamEl) naamEl.value='';
   document.getElementById('min-input').value=0; document.getElementById('max-input').value=2000;
   window.setSliderValues(0,2000);
   document.getElementById('f-beheerder-input').value=''; document.getElementById('kvk-search').value='';
