@@ -2253,7 +2253,26 @@ function renderLayers(data){
     onHover: hoverHandler,
   });
 
-  const layers = [clusterLayer, tekstLayer, puntLayer, klantHaloLayer, klantLayer].filter(Boolean);
+  // VVEgemak kantoor marker
+  const kantoorLayer = new ScatterplotLayer({
+    id: 'kantoor',
+    data: [{lat: 52.3074, lng: 4.9689, label: 'VVEgemak kantoor'}],
+    getPosition: d => [d.lng, d.lat],
+    getFillColor: [245, 166, 35, 255],
+    getRadius: 14,
+    radiusUnits: 'pixels',
+    stroked: true,
+    lineWidthMinPixels: 3,
+    getLineColor: [255, 255, 255, 255],
+    pickable: true,
+    autoHighlight: true,
+    highlightColor: [255, 200, 50, 255],
+    onClick: () => {
+      alert('VVEgemak B.V.\nDaalwijkdreef 47, Amsterdam');
+      return true;
+    },
+  });
+  const layers = [clusterLayer, tekstLayer, puntLayer, klantHaloLayer, klantLayer, kantoorLayer].filter(Boolean);
   if (gpsLat !== null) {
     layers.push(new ScatterplotLayer({
       id:'gps-ring', data:[{lat:gpsLat,lng:gpsLng}],
