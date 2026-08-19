@@ -177,75 +177,16 @@ body { font-family: Arial, sans-serif; height: 100vh; overflow: hidden; position
 .intern-btn:hover { transform: scale(1.05) translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.1); }
 .intern-btn:active { transform: scale(0.96); box-shadow: none; }
 .intern-btn.active { background: #1d7a6e; color: #fff; border-color: #1d7a6e; box-shadow: 0 3px 12px rgba(29,122,110,0.3); }
-.slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.slider-input {
-  width: 78px; padding: 9px 8px; border: 1.5px solid #e0e0e0; border-radius: 10px;
-  font-size: 13px; font-weight: 700; text-align: center; outline: none; color: #1d7a6e;
-  background: linear-gradient(180deg, #fff 0%, #f7faf9 100%);
-  box-shadow: 0 2px 0 #d0e8e4, inset 0 1px 3px rgba(0,0,0,0.06);
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.1s;
-}
-.slider-input:focus {
-  border-color: #1d7a6e;
-  box-shadow: 0 2px 0 #1d7a6e, 0 0 0 3px rgba(29,122,110,0.15), inset 0 1px 3px rgba(0,0,0,0.06);
-  transform: translateY(-1px);
-}
-.slider-sep { color: #bbb; font-size: 14px; font-weight: 600; }
-
-/* 3D slider track */
-.range-wrap {
-  position: relative;
-  height: 36px;
-  margin: 0 2px;
-  display: flex;
-  align-items: center;
-}
-.range-wrap input[type=range] {
-  position: absolute; width: 100%; pointer-events: none;
-  appearance: none; height: 6px; background: transparent;
-}
-/* 3D glossy thumb */
-.range-wrap input[type=range]::-webkit-slider-thumb {
-  pointer-events: all;
-  appearance: none;
-  width: 26px; height: 26px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 38% 35%, #3ecfba 0%, #1d7a6e 55%, #145c54 100%);
-  border: 3px solid #fff;
-  box-shadow:
-    0 4px 12px rgba(29,122,110,0.45),
-    0 1px 0 rgba(255,255,255,0.6) inset,
-    0 -2px 4px rgba(0,0,0,0.15) inset;
-  cursor: pointer;
-  transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s;
-}
-.range-wrap input[type=range]::-webkit-slider-thumb:hover {
-  transform: scale(1.25) translateY(-1px);
-  box-shadow:
-    0 8px 20px rgba(29,122,110,0.55),
-    0 1px 0 rgba(255,255,255,0.6) inset,
-    0 -2px 4px rgba(0,0,0,0.15) inset;
-}
-.range-wrap input[type=range]:active::-webkit-slider-thumb {
-  transform: scale(1.1) translateY(1px);
-}
-/* 3D inset track */
-.range-track {
-  position: absolute; left: 0; right: 0;
-  height: 8px;
-  background: linear-gradient(180deg, #d4d4d4 0%, #e8e8e8 40%, #f2f2f2 100%);
-  border-radius: 6px;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.18), inset 0 1px 2px rgba(0,0,0,0.12), 0 1px 0 rgba(255,255,255,0.9);
-}
-/* Glossy green fill */
-.range-fill {
-  position: absolute;
-  height: 8px;
-  background: linear-gradient(180deg, #3ecfba 0%, #1d7a6e 50%, #145c54 100%);
-  border-radius: 6px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 2px 6px rgba(29,122,110,0.4);
-  transition: left 0.05s, width 0.05s;
-}
+.slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.slider-input { width: 78px; padding: 8px 8px; border: 1.5px solid #e8e8e8; border-radius: 8px; font-size: 13px; text-align: center; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+.slider-input:focus { border-color: #1d7a6e; box-shadow: 0 0 0 3px rgba(29,122,110,0.15); }
+.slider-sep { color: #bbb; font-size: 14px; }
+.range-wrap { position: relative; height: 24px; margin: 4px 0; }
+.range-wrap input[type=range] { position: absolute; width: 100%; pointer-events: none; appearance: none; height: 4px; background: transparent; }
+.range-wrap input[type=range]::-webkit-slider-thumb { pointer-events: all; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #1d7a6e; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.15s; }
+.range-wrap input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+.range-track { position: absolute; top: 10px; left: 0; right: 0; height: 4px; background: #e8e8e8; border-radius: 2px; }
+.range-fill { position: absolute; top: 10px; height: 4px; background: #1d7a6e; border-radius: 2px; }
 .stadsdeel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .stadsdeel-btn {
   padding: 9px 8px; border-radius: 10px; border: 1.5px solid #e8e8e8;
@@ -515,6 +456,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   <button id="filter-btn" onclick="toggleFilters()">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
     Filters
+    <span id="filter-badge" style="display:none;background:#fff;color:#1d7a6e;font-size:11px;font-weight:800;border-radius:20px;padding:2px 7px;line-height:1.4;min-width:18px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.15);transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1),opacity 0.2s;">0</span>
   </button>
 </div>
 
@@ -2347,6 +2289,27 @@ function applyFilters(){
   }
   document.getElementById('s-total').textContent=alleData.length.toLocaleString('nl');
   document.getElementById('s-visible').textContent=gefilterd.length.toLocaleString('nl');
+  // Filter badge tellen
+  let _nFilters=0;
+  if(filters.type && filters.type!=='all') _nFilters++;
+  if(filters.minApp>0 || filters.maxApp<2000) _nFilters++;
+  if(filters.beheerder) _nFilters++;
+  if(filters.stadsdeel) _nFilters++;
+  if(filters.klant && filters.klant!=='all') _nFilters++;
+  if(filters.internBeheerder) _nFilters++;
+  if(filters.status) _nFilters++;
+  if(document.getElementById('kvk-search').value.trim()) _nFilters++;
+  const _badge=document.getElementById('filter-badge');
+  if(_badge){
+    if(_nFilters>0){
+      _badge.textContent=_nFilters;
+      _badge.style.display='inline-block';
+      _badge.style.transform='scale(1.25)';
+      setTimeout(()=>_badge.style.transform='scale(1)',200);
+    } else {
+      _badge.style.display='none';
+    }
+  }
   document.getElementById('leg-premium').textContent=nPremium.toLocaleString('nl');
   document.getElementById('leg-basic').textContent=nBasic.toLocaleString('nl');
   document.getElementById('leg-klant').textContent=nKlant.toLocaleString('nl');
