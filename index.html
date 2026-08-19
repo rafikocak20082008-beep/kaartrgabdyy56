@@ -177,16 +177,33 @@ body { font-family: Arial, sans-serif; height: 100vh; overflow: hidden; position
 .intern-btn:hover { transform: scale(1.05) translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.1); }
 .intern-btn:active { transform: scale(0.96); box-shadow: none; }
 .intern-btn.active { background: #1d7a6e; color: #fff; border-color: #1d7a6e; box-shadow: 0 3px 12px rgba(29,122,110,0.3); }
-.slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.slider-input { width: 78px; padding: 8px 8px; border: 1.5px solid #e8e8e8; border-radius: 8px; font-size: 13px; text-align: center; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
-.slider-input:focus { border-color: #1d7a6e; box-shadow: 0 0 0 3px rgba(29,122,110,0.15); }
-.slider-sep { color: #bbb; font-size: 14px; }
-.range-wrap { position: relative; height: 24px; margin: 4px 0; }
-.range-wrap input[type=range] { position: absolute; width: 100%; pointer-events: none; appearance: none; height: 4px; background: transparent; }
-.range-wrap input[type=range]::-webkit-slider-thumb { pointer-events: all; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #1d7a6e; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.15s; }
-.range-wrap input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
-.range-track { position: absolute; top: 10px; left: 0; right: 0; height: 4px; background: #e8e8e8; border-radius: 2px; }
-.range-fill { position: absolute; top: 10px; height: 4px; background: #1d7a6e; border-radius: 2px; }
+.slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.slider-input {
+  width: 72px; padding: 8px 6px; border: 1.5px solid #e0e0e0; border-radius: 10px;
+  font-size: 13px; font-weight: 600; text-align: center; outline: none; color: #222;
+  background: #fafafa; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.slider-input:focus { border-color: #1d7a6e; box-shadow: 0 0 0 3px rgba(29,122,110,0.12); background: #fff; }
+.slider-sep { color: #ccc; font-size: 13px; flex-shrink: 0; }
+/* Custom dual-range slider */
+.range-wrap { position: relative; height: 44px; margin: 0; display: flex; align-items: center; user-select: none; }
+.range-track {
+  position: absolute; left: 0; right: 0; height: 6px;
+  background: #e8ecef; border-radius: 6px;
+}
+.range-fill {
+  position: absolute; height: 6px; background: #1d7a6e; border-radius: 6px;
+}
+.range-thumb {
+  position: absolute; width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; border: 2.5px solid #1d7a6e;
+  box-shadow: 0 2px 8px rgba(29,122,110,0.25), 0 1px 3px rgba(0,0,0,0.1);
+  cursor: grab; transform: translateX(-50%); top: 50%; margin-top: -11px;
+  transition: box-shadow 0.15s, transform 0.1s;
+  touch-action: none;
+}
+.range-thumb:hover { box-shadow: 0 4px 14px rgba(29,122,110,0.35), 0 1px 3px rgba(0,0,0,0.1); }
+.range-thumb.dragging { cursor: grabbing; box-shadow: 0 6px 20px rgba(29,122,110,0.4), 0 2px 6px rgba(0,0,0,0.12); transform: translateX(-50%) scale(1.15); }
 .stadsdeel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .stadsdeel-btn {
   padding: 9px 8px; border-radius: 10px; border: 1.5px solid #e8e8e8;
@@ -558,15 +575,15 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
     <div class="filter-section">
       <div class="filter-label">Aantal appartementen</div>
       <div class="slider-row">
-        <input class="slider-input" id="min-input" type="number" min="0" max="500" value="0" oninput="syncFromInput('min')">
+        <input class="slider-input" id="min-input" type="number" min="0" max="2000" value="0" oninput="syncFromInput()">
         <span class="slider-sep">–</span>
-        <input class="slider-input" id="max-input" type="number" min="0" max="2000" value="2000" oninput="syncFromInput('max')">
+        <input class="slider-input" id="max-input" type="number" min="0" max="2000" value="2000" oninput="syncFromInput()">
       </div>
-      <div class="range-wrap">
+      <div class="range-wrap" id="range-wrap">
         <div class="range-track"></div>
         <div class="range-fill" id="range-fill"></div>
-        <input type="range" id="slider-min" min="0" max="500" value="0" oninput="syncFromSlider('min')">
-        <input type="range" id="slider-max" min="0" max="2000" value="2000" oninput="syncFromSlider('max')">
+        <div class="range-thumb" id="thumb-min"></div>
+        <div class="range-thumb" id="thumb-max"></div>
       </div>
     </div>
     <div class="filter-section">
@@ -2777,30 +2794,95 @@ function selectBeheerder(val){
   document.getElementById('beheerder-list').style.display='none';
   applyFilters();
 }
-function syncFromSlider(which){
-  let min=parseInt(document.getElementById('slider-min').value);
-  let max=parseInt(document.getElementById('slider-max').value);
-  if(min>max){if(which==='min')min=max;else max=min;}
-  document.getElementById('slider-min').value=min; document.getElementById('slider-max').value=max;
-  document.getElementById('min-input').value=min; document.getElementById('max-input').value=max;
-  filters.minApp=min; filters.maxApp=max;
-  applyFiltersDebounced();
-}
+// Custom dual-range slider
+(function(){
+  const MAX=2000;
+  let _minV=0, _maxV=MAX, _dragging=null;
+
+  function pct(v){ return v/MAX*100; }
+  function valFromPct(p){ return Math.round(Math.max(0,Math.min(MAX,p/100*MAX))); }
+
+  function render(){
+    const fill=document.getElementById('range-fill');
+    const tMin=document.getElementById('thumb-min');
+    const tMax=document.getElementById('thumb-max');
+    if(!fill||!tMin||!tMax) return;
+    fill.style.left=pct(_minV)+'%';
+    fill.style.width=(pct(_maxV)-pct(_minV))+'%';
+    tMin.style.left=pct(_minV)+'%';
+    tMax.style.left=pct(_maxV)+'%';
+    document.getElementById('min-input').value=_minV;
+    document.getElementById('max-input').value=_maxV;
+  }
+
+  function getValFromEvent(e,wrap){
+    const rect=wrap.getBoundingClientRect();
+    const clientX=e.touches?e.touches[0].clientX:e.clientX;
+    const p=Math.max(0,Math.min(100,(clientX-rect.left)/rect.width*100));
+    return valFromPct(p);
+  }
+
+  function startDrag(thumb, e){
+    e.preventDefault();
+    thumb.classList.add('dragging');
+    _dragging=thumb.id==='thumb-min'?'min':'max';
+    const wrap=document.getElementById('range-wrap');
+    function move(ev){
+      const v=getValFromEvent(ev,wrap);
+      if(_dragging==='min'){ _minV=Math.min(v,_maxV); }
+      else { _maxV=Math.max(v,_minV); }
+      render();
+      filters.minApp=_minV; filters.maxApp=_maxV;
+      applyFiltersDebounced();
+    }
+    function stop(){
+      thumb.classList.remove('dragging');
+      _dragging=null;
+      document.removeEventListener('mousemove',move);
+      document.removeEventListener('mouseup',stop);
+      document.removeEventListener('touchmove',move);
+      document.removeEventListener('touchend',stop);
+    }
+    document.addEventListener('mousemove',move);
+    document.addEventListener('mouseup',stop);
+    document.addEventListener('touchmove',move,{passive:false});
+    document.addEventListener('touchend',stop);
+  }
+
+  window.initRangeSlider=function(){
+    const tMin=document.getElementById('thumb-min');
+    const tMax=document.getElementById('thumb-max');
+    if(!tMin||!tMax) return;
+    tMin.addEventListener('mousedown',e=>startDrag(tMin,e));
+    tMin.addEventListener('touchstart',e=>startDrag(tMin,e),{passive:false});
+    tMax.addEventListener('mousedown',e=>startDrag(tMax,e));
+    tMax.addEventListener('touchstart',e=>startDrag(tMax,e),{passive:false});
+    render();
+  };
+
+  window.setSliderValues=function(min,max){
+    _minV=Math.max(0,Math.min(MAX,min));
+    _maxV=Math.max(0,Math.min(MAX,max));
+    render();
+  };
+
+  window.getSliderValues=function(){ return {min:_minV,max:_maxV}; };
+})();
+
 function syncFromInput(){
   let min=Math.max(0,Math.min(2000,parseInt(document.getElementById('min-input').value)||0));
   let max=Math.max(0,Math.min(2000,parseInt(document.getElementById('max-input').value)||2000));
   if(min>max) max=min;
-  document.getElementById('slider-min').value=Math.min(min,500);
-  document.getElementById('slider-max').value=Math.min(max,2000);
+  window.setSliderValues(min,max);
   filters.minApp=min; filters.maxApp=max;
   applyFiltersDebounced();
 }
 function updateRangeFill(){
-  const min=parseInt(document.getElementById('slider-min').value);
-  const max=parseInt(document.getElementById('slider-max').value);
-  const pct = v => Math.round(v / 2000 * 100);
-  document.getElementById('range-fill').style.left = pct(min) + '%';
-  document.getElementById('range-fill').style.width = (pct(max) - pct(min)) + '%';
+  const vals=window.getSliderValues?window.getSliderValues():{min:filters.minApp,max:filters.maxApp};
+  const fill=document.getElementById('range-fill');
+  if(!fill) return;
+  fill.style.left=(vals.min/2000*100)+'%';
+  fill.style.width=((vals.max-vals.min)/2000*100)+'%';
 }
 function toggleFilters(){
   const panel = document.getElementById('filter-panel');
@@ -2824,7 +2906,7 @@ function toggleFilters(){
 function resetFilters(){
   filters={type:'all',minApp:0,maxApp:2000,beheerder:'',stadsdeel:'',status:'',klant:'all',internBeheerder:''};
   document.getElementById('min-input').value=0; document.getElementById('max-input').value=2000;
-  document.getElementById('slider-min').value=0; document.getElementById('slider-max').value=2000;
+  window.setSliderValues(0,2000);
   document.getElementById('f-beheerder-input').value=''; document.getElementById('kvk-search').value='';
   document.querySelectorAll('.stadsdeel-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
   ['all','basic','premium'].forEach(t=>document.getElementById('type-'+t).classList.toggle('active',t==='all'));
@@ -4081,6 +4163,7 @@ checkReminders();
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
+  window.initRangeSlider && window.initRangeSlider();
   });
 
   // Face ID knop tonen als credential al geregistreerd is
