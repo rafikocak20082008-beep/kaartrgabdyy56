@@ -370,6 +370,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 @keyframes introPuls    { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:1} 50%{transform:translate(-50%,-50%) scale(1.08);opacity:0.6} }
 @keyframes introShin    { 0%{background-position:0%} 100%{background-position:200%} }
 
+@keyframes chipIn { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes vveRipple {
   0%   { transform: translate(-50%,-50%) scale(0); opacity: 0.7; }
   100% { transform: translate(-50%,-50%) scale(6); opacity: 0; }
@@ -477,6 +478,8 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
   </button>
 </div>
 
+<div id="filter-chips" style="position:absolute;bottom:108px;left:50%;transform:translateX(-50%);z-index:999;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;pointer-events:all;max-width:720px;padding:0 12px;"></div>
+
 <div id="legenda">
   <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Legenda</div>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
@@ -564,6 +567,12 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
     <button id="filter-close" onclick="toggleFilters()">×</button>
   </div>
   <div id="filter-body">
+    <div class="filter-section">
+      <div class="filter-label">VvE naam</div>
+      <input id="f-naam-input" type="text" placeholder="Bijv. Prinsengracht..."
+        style="width:100%;padding:10px 12px;border:1.5px solid #e8e8e8;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;"
+        oninput="filters.naam=this.value.trim();applyFiltersDebounced();">
+    </div>
     <div class="filter-section">
       <div class="filter-label">Type VvE</div>
       <div class="type-toggle">
@@ -2034,7 +2043,7 @@ async function syncFlyerNaarGitHub(kvk, data) {
   } catch(e) { console.warn('firebase sync fout:', e); }
 }
 // ─────────────────────────────────────────────────────────────────────────
-let filters = { type: 'all', minApp: 0, maxApp: 2000, beheerder: '', stadsdeel: '', status: '', klant: 'all', internBeheerder: '' };
+let filters = { type: 'all', minApp: 0, maxApp: 2000, beheerder: '', stadsdeel: '', status: '', klant: 'all', internBeheerder: '', naam: '' };
 
 // Data wordt extern geladen
 
@@ -2289,6 +2298,7 @@ function applyFilters(){
   let nPremium=0, nBasic=0, nKlant=0;
   for(let i=0,len=alleData.length;i<len;i++){
     const d=alleData[i];
+    if(filters.naam && !d.naam.toLowerCase().includes(filters.naam.toLowerCase())) continue;
     if(filters.type==='basic' && d.totaal>=50) continue;
     if(filters.type==='premium' && d.totaal<50) continue;
     if(filters.klant==='klant' && !d.klant) continue;
@@ -2306,6 +2316,20 @@ function applyFilters(){
   }
   document.getElementById('s-total').textContent=alleData.length.toLocaleString('nl');
   document.getElementById('s-visible').textContent=gefilterd.length.toLocaleString('nl');
+  // Filter chips renderen
+  const _chipsEl = document.getElementById('filter-chips');
+  if(_chipsEl){
+    const _chips = [];
+    if(filters.naam) _chips.push({label:'📝 '+filters.naam, clear:()=>{filters.naam='';document.getElementById('f-naam-input').value='';applyFilters();}});
+    if(filters.minApp>0||filters.maxApp<2000) _chips.push({label:`${filters.minApp}–${filters.maxApp} app`, clear:()=>{filters.minApp=0;filters.maxApp=2000;window.setSliderValues(0,2000);applyFilters();}});
+    if(filters.stadsdeel) _chips.push({label:filters.stadsdeel.charAt(0)+filters.stadsdeel.slice(1).toLowerCase(), clear:()=>{filters.stadsdeel='';document.querySelectorAll('.stadsdeel-btn').forEach((b,i)=>b.classList.toggle('active',i===0));applyFilters();}});
+    if(filters.beheerder) _chips.push({label:'🏢 '+filters.beheerder, clear:()=>{filters.beheerder='';document.getElementById('f-beheerder-input').value='';applyFilters();}});
+    if(filters.type&&filters.type!=='all') _chips.push({label:filters.type==='premium'?'Premium':'Basic', clear:()=>{filters.type='all';['all','basic','premium'].forEach(t=>document.getElementById('type-'+t).classList.toggle('active',t==='all'));applyFilters();}});
+    if(filters.klant&&filters.klant!=='all') _chips.push({label:filters.klant==='klant'?'Alleen klanten':'Geen klant', clear:()=>{filters.klant='all';['all','klant','geen'].forEach(k=>document.getElementById('klant-'+k).classList.toggle('active',k==='all'));applyFilters();}});
+    if(filters.internBeheerder) _chips.push({label:'👤 '+filters.internBeheerder.split(' ')[0], clear:()=>{filters.internBeheerder='';['all','farhaad','melanie','willem','randy'].forEach(k=>document.getElementById('intern-'+k).classList.toggle('active',k==='all'));applyFilters();}});
+    _chipsEl.innerHTML = _chips.map((_c,_i)=>`<span onclick="_chipClear(${_i})" style="display:inline-flex;align-items:center;gap:5px;background:#1d7a6e;color:#fff;font-size:12px;font-weight:600;padding:5px 10px 5px 12px;border-radius:20px;cursor:pointer;box-shadow:0 2px 8px rgba(29,122,110,0.3);white-space:nowrap;animation:chipIn 0.2s cubic-bezier(0.34,1.56,0.64,1);">${_c.label}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>`).join('');
+    window._filterChipActions = _chips.map(c=>c.clear);
+  }
   // Filter badge tellen
   let _nFilters=0;
   if(filters.type && filters.type!=='all') _nFilters++;
@@ -2903,8 +2927,11 @@ function toggleFilters(){
     });
   }
 }
+function _chipClear(i){ window._filterChipActions && window._filterChipActions[i] && window._filterChipActions[i](); }
+
 function resetFilters(){
-  filters={type:'all',minApp:0,maxApp:2000,beheerder:'',stadsdeel:'',status:'',klant:'all',internBeheerder:''};
+  filters={type:'all',minApp:0,maxApp:2000,beheerder:'',stadsdeel:'',status:'',klant:'all',internBeheerder:'',naam:''};
+  const naamEl=document.getElementById('f-naam-input'); if(naamEl) naamEl.value='';
   document.getElementById('min-input').value=0; document.getElementById('max-input').value=2000;
   window.setSliderValues(0,2000);
   document.getElementById('f-beheerder-input').value=''; document.getElementById('kvk-search').value='';
