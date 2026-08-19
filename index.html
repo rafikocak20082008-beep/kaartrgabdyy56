@@ -2446,7 +2446,7 @@ function openSidebar(d){
       svFrame.classList.add('loaded');
       if(svLoading) svLoading.style.display='none';
     };
-    svFrame.src = `https://maps.google.com/maps?q=${d.lat},${d.lng}&layer=c&output=embed&z=18`;
+    svFrame.src = `https://maps.google.com/maps?cbll=${d.lat},${d.lng}&layer=c&cbp=12,0,,0,0&output=embed`;
   }
   const svBtn = document.getElementById('sv-btn');
   if(svBtn) svBtn.href = `https://www.google.com/maps?q=&layer=c&cbll=${d.lat},${d.lng}`;
