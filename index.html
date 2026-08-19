@@ -655,7 +655,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
       <span>Foto laden...</span>
     </div>
     <iframe id="sidebar-sv-frame" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
-    <button id="sidebar-close" onclick="document.getElementById('sidebar').classList.remove('open');document.getElementById('search-bar').style.display='';document.getElementById('legenda').style.display='';clearGebouwHighlight();">‹</button>
+    <button id="sidebar-close" onclick="document.getElementById('sidebar').classList.remove('open');document.getElementById('search-bar').style.display='';document.getElementById('legenda').style.display='';document.getElementById('top-btns').style.display='';clearGebouwHighlight();">‹</button>
     <a id="sv-btn" target="_blank" rel="noopener">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
       Openen in Maps
@@ -2421,6 +2421,7 @@ function openSidebar(d){
   d.email = d.email || '';
   geselecteerdeVvE = d;
   document.getElementById('sidebar').classList.add('open');
+  document.getElementById('top-btns').style.display = 'none';
     document.getElementById('search-bar').style.display='none';
   document.getElementById('legenda').style.display='none';
   document.getElementById('filter-panel').classList.remove('open');
