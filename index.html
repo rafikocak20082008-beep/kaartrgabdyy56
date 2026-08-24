@@ -2204,6 +2204,7 @@ function renderLayers(data){
   const klantPunten = punten.filter(d=>d.klant);
 
   const clickHandler = (object, x, y) => {
+    document.getElementById('tooltip').style.display = 'none';
     if(!object) return true;
     if(flyerModus) { flyerPuntKlik(alleData.indexOf(object)); return true; }
     const zelfde = alleData.filter(d => Math.abs(d.lat-object.lat)<0.00001 && Math.abs(d.lng-object.lng)<0.00001);
