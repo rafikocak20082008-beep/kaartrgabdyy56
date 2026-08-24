@@ -946,6 +946,7 @@ function speelIntroAf() {
   if (!intro) return;
   intro.style.display = 'flex';
   intro.style.opacity = '1';
+  document.querySelector('meta[name="theme-color"]').content = '#03100e';
 
   const canvas = document.getElementById('intro-canvas');
   const ctx = canvas.getContext('2d');
@@ -1072,6 +1073,7 @@ function speelIntroAf() {
         intro.style.animation = '';
         cancelAnimationFrame(animId);
         _introKlaar = true;
+        document.querySelector('meta[name="theme-color"]').content = '#1d7a6e';
         slideNaarKaart();
       }, 820);
     } else {
