@@ -3786,6 +3786,8 @@ async function kaartFaceIDRegistreer() {
 async function kaartFaceIDLogin() {
   const stored = localStorage.getItem('vve_faceid_cred');
   if (!stored || !window.PublicKeyCredential) return;
+  const btn = document.getElementById('kaart-faceid-btn');
+  if (btn) btn.style.display = 'flex';
   try {
     const ch = crypto.getRandomValues(new Uint8Array(32));
     await navigator.credentials.get({ publicKey: {
@@ -3800,6 +3802,13 @@ async function kaartFaceIDLogin() {
     if (msg) { msg.textContent = 'Face ID mislukt — gebruik pincode'; msg.style.color = '#ffcccc'; }
   }
 }
+
+// Auto-trigger Face ID bij pagina load als credentials opgeslagen zijn
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('vve_faceid_cred') && window.PublicKeyCredential) {
+    setTimeout(() => kaartFaceIDLogin(), 300);
+  }
+});
 
 function kaartPinControleer() {
   if (_kaartPinBuffer === getKaartPin()) {
