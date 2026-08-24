@@ -2241,9 +2241,9 @@ function renderLayers(data){
       return d.totaal>=50 ? [29,122,110,230] : [123,198,126,220];
     },
     getRadius: d => getRadius(d.totaal),
-    radiusUnits: 'pixels', radiusMinPixels: 3, radiusMaxPixels: 8,
+    radiusUnits: 'pixels', radiusMinPixels: 4, radiusMaxPixels: 10,
     lineWidthMinPixels: 1, stroked: true,
-    getLineColor: [255,255,255,200],
+    getLineColor: [255,255,255,80],
     pickable: true, autoHighlight: true, highlightColor: [245,166,35,255],
     onClick: ({object,x,y})=>clickHandler(object,x,y),
     onHover: hoverHandler,
