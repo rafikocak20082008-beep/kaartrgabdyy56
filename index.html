@@ -315,10 +315,6 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
       <button class="kpin-key" onclick="kaartPinWis()" style="font-size:18px;">⌫</button>
     </div>
   </div>
-  <button id="kaart-faceid-btn" onclick="kaartFaceIDLogin()" style="display:none;margin-top:20px;align-items:center;gap:10px;background:rgba(255,255,255,0.18);border:none;border-radius:16px;padding:14px 28px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:0.3px;">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.866 3.134-7 7-7s7 3.134 7 7"/><path d="M3 11c0-5 3.5-8 9-8s9 3 9 8"/></svg>
-    Inloggen met Face ID
-  </button>
 </div>
 
 <!-- INTRO SPLASH SCREEN -->
@@ -3779,15 +3775,12 @@ async function kaartFaceIDRegistreer() {
     }});
     const id = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
     localStorage.setItem('vve_faceid_cred', id);
-    document.getElementById('kaart-faceid-btn') && (document.getElementById('kaart-faceid-btn').style.display = 'flex');
   } catch(e) { /* geweigerd of niet beschikbaar */ }
 }
 
 async function kaartFaceIDLogin() {
   const stored = localStorage.getItem('vve_faceid_cred');
   if (!stored || !window.PublicKeyCredential) return;
-  const btn = document.getElementById('kaart-faceid-btn');
-  if (btn) btn.style.display = 'flex';
   try {
     const ch = crypto.getRandomValues(new Uint8Array(32));
     await navigator.credentials.get({ publicKey: {
