@@ -2227,9 +2227,9 @@ function renderLayers(data){
   const puntShadowLayer = new ScatterplotLayer({
     id: 'vves-shadow', data: gewone,
     getPosition: d=>[d.lng,d.lat],
-    getFillColor: [0,0,0,40],
-    getRadius: d => getRadius(d.totaal) + 2,
-    radiusUnits: 'pixels', radiusMinPixels: 5, radiusMaxPixels: 13,
+    getFillColor: [0,0,0,55],
+    getRadius: d => getRadius(d.totaal) + 3,
+    radiusUnits: 'pixels', radiusMinPixels: 6, radiusMaxPixels: 15,
     stroked: false, pickable: false,
     updateTriggers: { getFillColor: flyerModus }
   });
@@ -2238,14 +2238,14 @@ function renderLayers(data){
     getPosition: d=>[d.lng,d.lat],
     getFillColor: d => {
       if(flyerModus){ const fc=getFlyerKleur(d); return fc||[180,180,180,80]; }
-      return d.totaal>=50 ? [29,122,110,230] : [123,198,126,220];
+      return d.totaal>=50 ? [22,140,120,240] : [100,210,110,235];
     },
     getRadius: d => getRadius(d.totaal),
     radiusUnits: 'pixels', radiusMinPixels: 4, radiusMaxPixels: 10,
     lineWidthMinPixels: 0.5,
     stroked: true,
     getLineColor: [255,255,255,180],
-    pickable: true, autoHighlight: true, highlightColor: [245,166,35,255],
+    pickable: true, autoHighlight: true, highlightColor: [255,180,20,255],
     onClick: ({object,x,y})=>clickHandler(object,x,y),
     onHover: hoverHandler,
     updateTriggers: { getFillColor: flyerModus }
