@@ -3721,6 +3721,7 @@ function flyerOpslaanTijd() {
 
 // ── Toetsenbord ondersteuning voor beide pincodes ────
 document.addEventListener('keydown', function(e) {
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
   const kaartOverlay = document.getElementById('kaart-pin-overlay');
   const flyerOverlay = document.getElementById('pin-overlay');
   if (kaartOverlay && kaartOverlay.style.display !== 'none') {
