@@ -2238,12 +2238,11 @@ function renderLayers(data){
     getPosition: d=>[d.lng,d.lat],
     getFillColor: d => {
       if(flyerModus){ const fc=getFlyerKleur(d); return fc||[180,180,180,80]; }
-      return d.totaal>=50 ? [29,122,110,230] : [123,198,126,220];
+      return d.totaal>=50 ? [29,122,110,255] : [123,198,126,255];
     },
     getRadius: d => getRadius(d.totaal),
     radiusUnits: 'pixels', radiusMinPixels: 4, radiusMaxPixels: 10,
-    lineWidthMinPixels: 1, stroked: true,
-    getLineColor: [255,255,255,180],
+    stroked: false,
     pickable: true, autoHighlight: true, highlightColor: [245,166,35,255],
     onClick: ({object,x,y})=>clickHandler(object,x,y),
     onHover: hoverHandler,
