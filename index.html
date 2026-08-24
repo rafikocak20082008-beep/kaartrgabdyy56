@@ -3846,6 +3846,46 @@ function toonPinModal() {
   document.getElementById('pin-overlay').style.display = 'flex';
   const kb = document.getElementById('kaart-pin-keyboard');
   if (kb) kb.blur();
+  // Auto-trigger Face ID als geregistreerd
+  if (localStorage.getItem('vve_flyer_faceid_cred') && window.PublicKeyCredential) {
+    setTimeout(() => flyerFaceIDLogin(), 300);
+  }
+}
+
+async function flyerFaceIDRegistreer() {
+  if (!window.PublicKeyCredential) return;
+  try {
+    const ch = crypto.getRandomValues(new Uint8Array(32));
+    const cred = await navigator.credentials.create({ publicKey: {
+      challenge: ch,
+      rp: { name: 'VVEgemak Flyer', id: location.hostname },
+      user: { id: new Uint8Array([4,5,6]), name: 'flyer_gebruiker', displayName: 'Flyer Gebruiker' },
+      pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+      timeout: 60000,
+    }});
+    const id = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+    localStorage.setItem('vve_flyer_faceid_cred', id);
+  } catch(e) { /* geweigerd of niet beschikbaar */ }
+}
+
+async function flyerFaceIDLogin() {
+  const stored = localStorage.getItem('vve_flyer_faceid_cred');
+  if (!stored || !window.PublicKeyCredential) return;
+  try {
+    const ch = crypto.getRandomValues(new Uint8Array(32));
+    await navigator.credentials.get({ publicKey: {
+      challenge: ch,
+      allowCredentials: [{ id: Uint8Array.from(atob(stored), c => c.charCodeAt(0)), type: 'public-key' }],
+      userVerification: 'required',
+      timeout: 60000,
+    }});
+    sluitPinModal();
+    _openFlyerModus();
+  } catch(e) {
+    const msg = document.getElementById('pin-msg');
+    if (msg) { msg.textContent = 'Face ID mislukt — gebruik pincode'; msg.style.color = '#ffcccc'; }
+  }
 }
 
 function sluitPinModal() {
@@ -3878,6 +3918,14 @@ function pinControleer() {
   if (_pinBuffer === getPincode()) {
     sluitPinModal();
     _openFlyerModus();
+    if (!localStorage.getItem('vve_flyer_faceid_cred') && window.PublicKeyCredential) {
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(ok => {
+        if (!ok) return;
+        setTimeout(() => {
+          if (confirm('Wil je volgende keer inloggen met Face ID of vingerafdruk?')) flyerFaceIDRegistreer();
+        }, 800);
+      });
+    }
   } else {
     document.getElementById('pin-msg').textContent = 'Onjuiste pincode, probeer opnieuw';
     document.getElementById('pin-msg').style.color = '#ffaaaa';
