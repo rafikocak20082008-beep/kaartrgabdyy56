@@ -1073,7 +1073,7 @@ function speelIntroAf() {
         intro.style.animation = '';
         cancelAnimationFrame(animId);
         _introKlaar = true;
-        document.querySelector('meta[name="theme-color"]').content = '#1d7a6e';
+        document.querySelector('meta[name="theme-color"]').content = '#ffffff';
         slideNaarKaart();
       }, 820);
     } else {
@@ -1084,6 +1084,7 @@ function speelIntroAf() {
         intro.style.display = 'none';
         cancelAnimationFrame(animId);
         _introKlaar = true;
+        document.querySelector('meta[name="theme-color"]').content = '#1d7a6e';
         const loginEl = document.getElementById('login-overlay');
         loginEl.style.opacity = '0';
         loginEl.style.display = 'flex';
