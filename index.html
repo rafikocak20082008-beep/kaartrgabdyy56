@@ -2227,9 +2227,9 @@ function renderLayers(data){
   const puntShadowLayer = new ScatterplotLayer({
     id: 'vves-shadow', data: gewone,
     getPosition: d=>[d.lng,d.lat],
-    getFillColor: [0,0,0,55],
-    getRadius: d => getRadius(d.totaal) + 3,
-    radiusUnits: 'pixels', radiusMinPixels: 6, radiusMaxPixels: 15,
+    getFillColor: [0,0,0,40],
+    getRadius: d => getRadius(d.totaal) + 2,
+    radiusUnits: 'pixels', radiusMinPixels: 5, radiusMaxPixels: 13,
     stroked: false, pickable: false,
     updateTriggers: { getFillColor: flyerModus }
   });
@@ -2238,7 +2238,7 @@ function renderLayers(data){
     getPosition: d=>[d.lng,d.lat],
     getFillColor: d => {
       if(flyerModus){ const fc=getFlyerKleur(d); return fc||[180,180,180,80]; }
-      return d.totaal>=50 ? [22,140,120,240] : [100,210,110,235];
+      return d.totaal>=50 ? [29,122,110,255] : [123,198,126,255];
     },
     getRadius: d => getRadius(d.totaal),
     radiusUnits: 'pixels', radiusMinPixels: 4, radiusMaxPixels: 10,
