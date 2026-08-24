@@ -3061,6 +3061,7 @@ let flyerGekozeneFlyer = null;
 let flyerHuidigeRoute = [];
 let flyerSessieStart = null;
 let _flyerSessieSnapshot = {}; // snapshot van flyerData bij sessie-start
+let _flyerSessieGedaan = new Set(); // KvK's afgevinkt in huidige sessie
 let _flyerSessieOpgeslagen = false;
 let flyerHuidigeStap = 0;
 let flyerDelen = null;
@@ -3411,11 +3412,10 @@ function flyerSorteerRoute(vves, start) {
   _flyerSessieOpgeslagen = false;
   // Snapshot: sla huidige staat op zodat we kunnen terugdraaien
   _flyerSessieSnapshot = {};
+  _flyerSessieGedaan = new Set(); // bijhoudt wat in DEZE sessie is afgevinkt
   flyerHuidigeRoute.forEach(d => {
     const k = String(d.kvk);
     _flyerSessieSnapshot[k] = flyerData[k] ? JSON.parse(JSON.stringify(flyerData[k])) : null;
-    // Reset bezoek1 zodat nieuwe sessie schoon begint (history staat in Firebase)
-    if (flyerData[k]) delete flyerData[k].bezoek1;
   });
   flyerNaarStap(5);
   flyerToonRoute();
@@ -3473,6 +3473,7 @@ function flyerMarkeerGedaan(kvk, idx) {
   const fd = flyerData[kvkStr];
   const datum = new Date().toISOString().split('T')[0];
   const nieuw = {datum, flyer: flyerGekozeneFlyer, duur: 0};
+  _flyerSessieGedaan.add(kvkStr); // markeer in huidige sessie
   if (!fd.bezoek1) fd.bezoek1 = nieuw;
   else if (!fd.bezoek2) fd.bezoek2 = nieuw;
   else if (!fd.bezoek3) fd.bezoek3 = nieuw;
@@ -3482,7 +3483,7 @@ function flyerMarkeerGedaan(kvk, idx) {
   applyFilters();
 
   // Auto-trigger "Klaar" als alle VvEs in de route zijn afgevinkt
-  const alleGedaan = flyerHuidigeRoute.every(r => flyerData[String(r.kvk)]?.bezoek1);
+  const alleGedaan = flyerHuidigeRoute.every(r => _flyerSessieGedaan.has(String(r.kvk)));
   if (alleGedaan && flyerHuidigeRoute.length > 0) {
     setTimeout(() => flyerSessieKlaar(), 600);
   }
@@ -3512,8 +3513,8 @@ function flyerSlaVoortgangOp() {
 function flyerToonRoute() {
   const buurtenStr = [...new Set(flyerGeselecteerdeBuurten)].join(', ');
 
-  const zichtbaar = flyerHuidigeRoute.filter(d => !flyerData[String(d.kvk)]?.bezoek1);
-  const gedaanLijst = flyerHuidigeRoute.filter(d => flyerData[String(d.kvk)]?.bezoek1);
+  const zichtbaar = flyerHuidigeRoute.filter(d => !_flyerSessieGedaan.has(String(d.kvk)));
+  const gedaanLijst = flyerHuidigeRoute.filter(d => _flyerSessieGedaan.has(String(d.kvk)));
   const n = flyerHuidigeRoute.length;
   const gedaanCount = gedaanLijst.length;
   const badge = document.getElementById('flyer-route-badge');
@@ -3532,7 +3533,7 @@ function flyerToonRoute() {
   const deelLabel = flyerGekozeBuurtItem?.totaalDelen > 1 ? ` · deel ${flyerGekozeBuurtItem.deelNr}/${flyerGekozeBuurtItem.totaalDelen}` : '';
   // Geschatte looptijd berekenen
   let loopLabel = '';
-  const resterendRoute = flyerHuidigeRoute.filter(d => !flyerData[String(d.kvk)]?.bezoek1);
+  const resterendRoute = flyerHuidigeRoute.filter(d => !_flyerSessieGedaan.has(String(d.kvk)));
   if (resterendRoute.length > 0 && flyerStartpunt) {
     let totaalM = 0;
     let prev = flyerStartpunt;
@@ -3655,9 +3656,10 @@ function flyerOpslaanTijd() {
   const uur = parseInt(document.getElementById('flyer-uur').value)||0;
   const min = parseInt(document.getElementById('flyer-min').value)||0;
   const datum = new Date().toISOString().split('T')[0];
-  // Sla bezoek op voor alle VvEs die in deze sessie zijn afgevinkt
+  // Sla bezoek op alleen voor VvEs die in DEZE sessie zijn afgevinkt
   flyerHuidigeRoute.forEach(d => {
     const kvk = String(d.kvk);
+    if (!_flyerSessieGedaan.has(kvk)) return; // sla over als niet afgevinkt
     if (!flyerData[kvk]) flyerData[kvk] = {};
     const fd = flyerData[kvk];
     const nieuwBezoek = {datum, flyer: flyerGekozeneFlyer, duur: uur*60+min};
@@ -4321,7 +4323,7 @@ function toggleSwipeModus() {
   const overlay = document.getElementById('swipe-overlay');
   const btn = document.getElementById('swipe-toggle-btn');
   if (_swipeModus) {
-    _swipeRij = flyerHuidigeRoute.filter(d => !flyerData[String(d.kvk)]?.bezoek1);
+    _swipeRij = flyerHuidigeRoute.filter(d => !_flyerSessieGedaan.has(String(d.kvk)));
     if (!_swipeRij.length) { _swipeModus = false; alert('Alle VvEs zijn al geflyerd!'); return; }
     _swipeIndex = 0;
     overlay.style.display = 'flex';
