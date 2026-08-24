@@ -3720,6 +3720,7 @@ document.addEventListener('keydown', function(e) {
   } else if (flyerOverlay && flyerOverlay.style.display === 'flex') {
     if (e.key >= '0' && e.key <= '9') pinInvoer(e.key);
     else if (e.key === 'Backspace') pinWis();
+    else if (e.key === 'Escape') sluitPinModal();
   }
 });
 
