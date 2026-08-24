@@ -2238,6 +2238,8 @@ function renderLayers(data){
     getPosition: d=>[d.lng,d.lat],
     getFillColor: d => {
       if(flyerModus){ const fc=getFlyerKleur(d); return fc||[180,180,180,80]; }
+      if(geselecteerdeVvE && d === geselecteerdeVvE)
+        return d.totaal>=50 ? [60,200,170,255] : [180,240,160,255];
       return d.totaal>=50 ? [29,122,110,255] : [123,198,126,255];
     },
     getRadius: d => getRadius(d.totaal),
@@ -2245,10 +2247,10 @@ function renderLayers(data){
     lineWidthMinPixels: 0.5,
     stroked: true,
     getLineColor: [255,255,255,180],
-    pickable: true, autoHighlight: true, highlightColor: [255,180,20,255],
+    pickable: true, autoHighlight: true, highlightColor: [255,255,255,80],
     onClick: ({object,x,y})=>clickHandler(object,x,y),
     onHover: hoverHandler,
-    updateTriggers: { getFillColor: flyerModus }
+    updateTriggers: { getFillColor: [flyerModus, geselecteerdeVvE] }
   });
 
   const klantHaloLayer = new ScatterplotLayer({
@@ -2440,6 +2442,7 @@ function distTotLijnstuk(px, py, ax, ay, bx, by) {
 
 function clearGebouwHighlight() {
   geselecteerdeVvE = null;
+  renderLayers(alleData);
 }
 
 function openSidebar(d){
@@ -2458,6 +2461,7 @@ function openSidebar(d){
   d.website = d.website || '';
   d.email = d.email || '';
   geselecteerdeVvE = d;
+  renderLayers(alleData);
   document.getElementById('sidebar').classList.add('open');
   document.getElementById('top-btns').style.display = 'none';
     document.getElementById('search-bar').style.display='none';
