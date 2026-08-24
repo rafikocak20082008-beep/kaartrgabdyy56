@@ -3099,7 +3099,7 @@ function kMeansCluster(vves, k) {
 }
 
 // ── Push notificaties & herinneringen ───────────────
-const FLYER_EMAIL = 'moriskocak77@gmail.com'; // alleen Moris krijgt meldingen
+const FLYER_EMAILS = ['moriskocak77@gmail.com', 'rafikocak20.08.2008@gmail.com'];
 
 async function vraagPushToestemming() {
   if (!('Notification' in window)) return false;
@@ -3136,12 +3136,12 @@ function verwijderReminder(label) {
 let _reminderInterval = null;
 
 function checkReminders() {
-  if (!_fbGebruiker || _fbGebruiker.email !== FLYER_EMAIL) return;
+  if (!_fbGebruiker || !FLYER_EMAILS.includes(_fbGebruiker.email)) return;
   const nu = Date.now();
   const banner = document.getElementById('reminder-banner');
 
   // Lees altijd uit Firebase (persistent, werkt op elk apparaat)
-  _db.collection('reminders').where('email','==', FLYER_EMAIL).get().then(snap => {
+  _db.collection('reminders').where('email','==', _fbGebruiker.email).get().then(snap => {
     const verval = [];
     snap.forEach(doc => {
       const r = doc.data();
@@ -3180,7 +3180,7 @@ function checkReminders() {
 }
 
 function startReminderCheck() {
-  if (_fbGebruiker?.email !== FLYER_EMAIL) return;
+  if (!FLYER_EMAILS.includes(_fbGebruiker?.email)) return;
   vraagPushToestemming();
   checkReminders();
   clearInterval(_reminderInterval);
