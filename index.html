@@ -3414,6 +3414,8 @@ function flyerSorteerRoute(vves, start) {
   flyerHuidigeRoute.forEach(d => {
     const k = String(d.kvk);
     _flyerSessieSnapshot[k] = flyerData[k] ? JSON.parse(JSON.stringify(flyerData[k])) : null;
+    // Reset bezoek1 zodat nieuwe sessie schoon begint (history staat in Firebase)
+    if (flyerData[k]) delete flyerData[k].bezoek1;
   });
   flyerNaarStap(5);
   flyerToonRoute();
