@@ -68,14 +68,15 @@ body { font-family: Arial, sans-serif; height: 100vh; overflow: hidden; position
   transform: perspective(600px) rotateX(0deg) translateY(-2px);
   box-shadow: 0 16px 48px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.1);
 }
-/* 3D hover lift voor flyermodus route-kaarten */
+/* 3D route-kaarten */
 #flyer-route-lijst > div, #flyer-route-gedaan-lijst > div {
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-  transform-style: preserve-3d;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.07) !important;
+  cursor: pointer;
 }
-#flyer-route-lijst > div:hover {
-  transform: perspective(600px) rotateX(-2deg) translateY(-3px) scale(1.01);
-  box-shadow: 0 12px 28px rgba(0,0,0,0.13) !important;
+#flyer-route-lijst > div:active {
+  transform: translateY(4px) !important;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.06) !important;
 }
 /* 3D hover lift voor sessie-cards */
 .sessie-card {
@@ -226,9 +227,10 @@ body { font-family: Arial, sans-serif; height: 100vh; overflow: hidden; position
 #reset-btn:active { transform: scale(0.97) translateY(0); }
 
 #top-btns { position: absolute; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 8px; }
-.top-btn { width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid rgba(29,122,110,0.15); background: rgba(255,255,255,0.97); box-shadow: 0 2px 12px rgba(29,122,110,0.13); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.18s; color: #1d7a6e; }
-.top-btn:hover { background: #f0faf8; box-shadow: 0 4px 18px rgba(29,122,110,0.2); }
-.top-btn.active { background: #1d7a6e; color: #fff; border-color: #1d7a6e; }
+.top-btn { width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid rgba(29,122,110,0.15); background: rgba(255,255,255,0.97); box-shadow: 0 5px 0 rgba(29,122,110,0.15), 0 8px 16px rgba(29,122,110,0.12); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s, box-shadow 0.1s; color: #1d7a6e; }
+.top-btn:hover { background: #f0faf8; }
+.top-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(29,122,110,0.15), 0 2px 6px rgba(29,122,110,0.1); }
+.top-btn.active { background: #1d7a6e; color: #fff; border-color: #1d7a6e; box-shadow: 0 5px 0 #0f4a43, 0 8px 16px rgba(29,122,110,0.3); }
 .top-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 body.dark-mode #legenda,
@@ -810,7 +812,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
       <div style="font-size:15px;font-weight:700;color:#222;margin-bottom:4px;">Kies buurt(en)</div>
       <div style="font-size:12px;color:#999;margin-bottom:14px;">Selecteer één of meerdere buurten</div>
       <div id="flyer-buurt-lijst"></div>
-      <button onclick="flyerBevestigBuurten()" id="flyer-buurt-btn" style="display:none;width:100%;padding:14px;border-radius:12px;border:none;background:#1d7a6e;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-top:12px;">Volgende →</button>
+      <button onclick="flyerBevestigBuurten()" id="flyer-buurt-btn" style="display:none;width:100%;padding:14px;border-radius:12px;border:none;background:#1d7a6e;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-top:12px;box-shadow:0 5px 0 #0f4a43,0 8px 16px rgba(29,122,110,0.3);transition:transform 0.1s,box-shadow 0.1s;" onmousedown="this.style.transform='translateY(4px)';this.style.boxShadow='0 1px 0 #0f4a43'" onmouseup="this.style.transform='';this.style.boxShadow='0 5px 0 #0f4a43,0 8px 16px rgba(29,122,110,0.3)'">Volgende →</button>
     </div>
 
     <!-- STAP 4: Flyer kiezen -->
@@ -854,7 +856,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
       </div>
       <div id="flyer-route-lijst"></div>
       <div id="flyer-route-gedaan-lijst" style="margin-top:4px;"></div>
-      <button onclick="flyerSessieKlaar()" style="width:100%;padding:16px;border-radius:14px;border:none;background:#1d7a6e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:12px;">✓ Klaar — sessie afronden</button>
+      <button onclick="flyerSessieKlaar()" style="width:100%;padding:16px;border-radius:14px;border:none;background:#27ae60;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:12px;box-shadow:0 5px 0 #1a7a42,0 8px 16px rgba(39,174,96,0.3);transition:transform 0.1s,box-shadow 0.1s;" onmousedown="this.style.transform='translateY(4px)';this.style.boxShadow='0 1px 0 #1a7a42'" onmouseup="this.style.transform='';this.style.boxShadow='0 5px 0 #1a7a42,0 8px 16px rgba(39,174,96,0.3)'">✓ Klaar — sessie afronden</button>
       <button onclick="flyerNaarStap(3)" style="width:100%;padding:12px;border-radius:14px;border:2px solid #e0e0e0;background:#fff;color:#555;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;">← Terug naar buurten</button>
     </div>
 
@@ -2222,6 +2224,15 @@ function renderLayers(data){
     } else { tip.style.display='none'; }
   };
 
+  const puntShadowLayer = new ScatterplotLayer({
+    id: 'vves-shadow', data: gewone,
+    getPosition: d=>[d.lng,d.lat],
+    getFillColor: [0,0,0,40],
+    getRadius: d => getRadius(d.totaal) + 2,
+    radiusUnits: 'pixels', radiusMinPixels: 5, radiusMaxPixels: 13,
+    stroked: false, pickable: false,
+    updateTriggers: { getFillColor: flyerModus }
+  });
   const puntLayer = new ScatterplotLayer({
     id: 'vves', data: gewone,
     getPosition: d=>[d.lng,d.lat],
@@ -2231,9 +2242,9 @@ function renderLayers(data){
     },
     getRadius: d => getRadius(d.totaal),
     radiusUnits: 'pixels', radiusMinPixels: 4, radiusMaxPixels: 10,
-    lineWidthMinPixels: 0.5,
+    lineWidthMinPixels: 1.5,
     stroked: true,
-    getLineColor: [255,255,255,180],
+    getLineColor: [255,255,255,200],
     pickable: true, autoHighlight: true, highlightColor: [245,166,35,255],
     onClick: ({object,x,y})=>clickHandler(object,x,y),
     onHover: hoverHandler,
@@ -2280,7 +2291,7 @@ function renderLayers(data){
       return true;
     },
   });
-  const layers = [clusterLayer, tekstLayer, puntLayer, klantHaloLayer, klantLayer, kantoorLayer].filter(Boolean);
+  const layers = [clusterLayer, tekstLayer, puntShadowLayer, puntLayer, klantHaloLayer, klantLayer, kantoorLayer].filter(Boolean);
   if (gpsLat !== null) {
     layers.push(new ScatterplotLayer({
       id:'gps-ring', data:[{lat:gpsLat,lng:gpsLng}],
@@ -2356,7 +2367,7 @@ function applyFilters(){
     if(filters.type&&filters.type!=='all') _chips.push({label:filters.type==='premium'?'Premium':'Basic', clear:()=>{filters.type='all';['all','basic','premium'].forEach(t=>document.getElementById('type-'+t).classList.toggle('active',t==='all'));applyFilters();}});
     if(filters.klant&&filters.klant!=='all') _chips.push({label:filters.klant==='klant'?'Alleen klanten':'Geen klant', clear:()=>{filters.klant='all';['all','klant','geen'].forEach(k=>document.getElementById('klant-'+k).classList.toggle('active',k==='all'));applyFilters();}});
     if(filters.internBeheerder) _chips.push({label:'👤 '+filters.internBeheerder.split(' ')[0], clear:()=>{filters.internBeheerder='';['all','farhaad','melanie','willem','randy'].forEach(k=>document.getElementById('intern-'+k).classList.toggle('active',k==='all'));applyFilters();}});
-    _chipsEl.innerHTML = _chips.map((_c,_i)=>`<span onclick="_chipClear(${_i})" style="display:inline-flex;align-items:center;gap:5px;background:#1d7a6e;color:#fff;font-size:12px;font-weight:600;padding:5px 10px 5px 12px;border-radius:20px;cursor:pointer;box-shadow:0 2px 8px rgba(29,122,110,0.3);white-space:nowrap;animation:chipIn 0.2s cubic-bezier(0.34,1.56,0.64,1);">${_c.label}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>`).join('');
+    _chipsEl.innerHTML = _chips.map((_c,_i)=>`<span onclick="_chipClear(${_i})" style="display:inline-flex;align-items:center;gap:5px;background:#1d7a6e;color:#fff;font-size:12px;font-weight:600;padding:5px 10px 5px 12px;border-radius:20px;cursor:pointer;box-shadow:0 3px 0 #0f4a43,0 5px 12px rgba(29,122,110,0.3);white-space:nowrap;animation:chipIn 0.2s cubic-bezier(0.34,1.56,0.64,1);transition:transform 0.1s,box-shadow 0.1s;" onmousedown="this.style.transform='translateY(2px)';this.style.boxShadow='0 1px 0 #0f4a43,0 2px 6px rgba(29,122,110,0.2)'" onmouseup="this.style.transform='';this.style.boxShadow='0 3px 0 #0f4a43,0 5px 12px rgba(29,122,110,0.3)'">${_c.label}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>`).join('');
     window._filterChipActions = _chips.map(c=>c.clear);
   }
   // Filter badge tellen
