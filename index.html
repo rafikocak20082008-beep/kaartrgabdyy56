@@ -692,7 +692,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
       <div style="width:56px;height:56px;background:rgba(255,255,255,0.2);border-radius:16px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
       </div>
-      <div style="color:#fff;font-size:17px;font-weight:700;">Flyer modus</div>
+      <div id="flyer-pin-title" style="color:#fff;font-size:17px;font-weight:700;" onclick="(function(){window._flyerTitleTaps=(window._flyerTitleTaps||0)+1;if(window._flyerTitleTaps>=3){window._flyerTitleTaps=0;flyerFaceIDRegistreer().then(()=>{const m=document.getElementById('pin-msg');if(m)m.textContent='Face ID ingesteld ✓';});}setTimeout(()=>{if(window._flyerTitleTaps<3)window._flyerTitleTaps=0;},1500);})()">Flyer modus</div>
       <div id="pin-msg" style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:4px;">Voer de pincode in</div>
     </div>
     <!-- Body -->
@@ -2235,7 +2235,7 @@ function renderLayers(data){
     getFillColor: d => {
       if(flyerModus){ const fc=getFlyerKleur(d); return fc||[180,180,180,80]; }
       if(geselecteerdeVvE && d === geselecteerdeVvE)
-        return d.totaal>=50 ? [60,200,170,255] : [180,240,160,255];
+        return d.totaal>=50 ? [40,160,140,255] : [150,225,140,255];
       return d.totaal>=50 ? [29,122,110,255] : [123,198,126,255];
     },
     getRadius: d => getRadius(d.totaal),
@@ -3918,14 +3918,6 @@ function pinControleer() {
   if (_pinBuffer === getPincode()) {
     sluitPinModal();
     _openFlyerModus();
-    if (!localStorage.getItem('vve_flyer_faceid_cred') && window.PublicKeyCredential) {
-      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(ok => {
-        if (!ok) return;
-        setTimeout(() => {
-          if (confirm('Wil je volgende keer inloggen met Face ID of vingerafdruk?')) flyerFaceIDRegistreer();
-        }, 800);
-      });
-    }
   } else {
     document.getElementById('pin-msg').textContent = 'Onjuiste pincode, probeer opnieuw';
     document.getElementById('pin-msg').style.color = '#ffaaaa';
