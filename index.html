@@ -250,8 +250,8 @@ body.dark-mode .search-result { background: #1a1f2e !important; color: #e0e0e0 !
 body.dark-mode .search-result:hover { background: #252d45 !important; }
 body.dark-mode #search-results { background: #1a1f2e !important; }
 #status-sectie { margin: 0 16px 10px; padding: 14px 16px; background: #fff; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-.pin-key { padding: 16px 8px; border-radius: 14px; border: none; background: #f0f2f5; font-size: 20px; font-weight: 700; cursor: pointer; transition: background 0.1s; }
-.pin-key:active { background: #1d7a6e; color: #fff; }
+.pin-key { padding: 16px 8px; border-radius: 14px; border: none; background: #fff; border: 0.5px solid #e8e8e8; font-size: 20px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 0 #d8d8d8, 0 6px 12px rgba(0,0,0,0.06); transition: transform 0.08s, box-shadow 0.08s; }
+.pin-key:active { transform: translateY(3px); box-shadow: 0 1px 0 #d8d8d8; }
 .kpin-key { padding: 16px 8px; border-radius: 14px; border: none; background: rgba(255,255,255,0.2); color: #fff; font-size: 20px; font-weight: 700; cursor: pointer; transition: background 0.1s; }
 .kpin-key:active { background: rgba(255,255,255,0.5); }
 
@@ -687,32 +687,40 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 </div>
 
 <!-- Pincode modal -->
-<div id="pin-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:20000;display:none;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:24px;padding:28px 24px;width:300px;box-shadow:0 24px 60px rgba(0,0,0,0.3);text-align:center;">
-    <div style="font-size:28px;margin-bottom:8px;">🔒</div>
-    <div style="font-size:17px;font-weight:700;color:#222;margin-bottom:4px;">Flyer modus</div>
-    <div id="pin-msg" style="font-size:13px;color:#999;margin-bottom:20px;">Voer de pincode in</div>
-    <!-- Dots -->
-    <div style="display:flex;justify-content:center;gap:12px;margin-bottom:20px;" id="pin-dots">
-      <div class="pin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:background 0.15s;"></div>
-      <div class="pin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:background 0.15s;"></div>
-      <div class="pin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:background 0.15s;"></div>
-      <div class="pin-dot" style="width:16px;height:16px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:background 0.15s;"></div>
+<div id="pin-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);z-index:20000;display:none;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:24px;width:300px;box-shadow:0 24px 60px rgba(0,0,0,0.25);overflow:hidden;">
+    <!-- Header gradient -->
+    <div style="background:linear-gradient(145deg,#1d7a6e,#2aa090);padding:28px 20px 22px;text-align:center;">
+      <div style="width:56px;height:56px;background:rgba(255,255,255,0.2);border-radius:16px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      </div>
+      <div style="color:#fff;font-size:17px;font-weight:700;">Flyer modus</div>
+      <div id="pin-msg" style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:4px;">Voer de pincode in</div>
     </div>
-    <!-- Numpad -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-      <button class="pin-key" onclick="pinInvoer('1')">1</button>
-      <button class="pin-key" onclick="pinInvoer('2')">2</button>
-      <button class="pin-key" onclick="pinInvoer('3')">3</button>
-      <button class="pin-key" onclick="pinInvoer('4')">4</button>
-      <button class="pin-key" onclick="pinInvoer('5')">5</button>
-      <button class="pin-key" onclick="pinInvoer('6')">6</button>
-      <button class="pin-key" onclick="pinInvoer('7')">7</button>
-      <button class="pin-key" onclick="pinInvoer('8')">8</button>
-      <button class="pin-key" onclick="pinInvoer('9')">9</button>
-      <button class="pin-key" onclick="sluitPinModal()" style="background:#f5f5f5;color:#999;font-size:18px;">✕</button>
-      <button class="pin-key" onclick="pinInvoer('0')">0</button>
-      <button class="pin-key" onclick="pinWis()" style="background:#f5f5f5;color:#666;font-size:18px;">⌫</button>
+    <!-- Body -->
+    <div style="padding:20px;">
+      <!-- Dots -->
+      <div style="display:flex;justify-content:center;gap:14px;margin-bottom:20px;" id="pin-dots">
+        <div class="pin-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:all 0.15s;"></div>
+        <div class="pin-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:all 0.15s;"></div>
+        <div class="pin-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:all 0.15s;"></div>
+        <div class="pin-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:all 0.15s;"></div>
+      </div>
+      <!-- Numpad -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+        <button class="pin-key" onclick="pinInvoer('1')">1</button>
+        <button class="pin-key" onclick="pinInvoer('2')">2</button>
+        <button class="pin-key" onclick="pinInvoer('3')">3</button>
+        <button class="pin-key" onclick="pinInvoer('4')">4</button>
+        <button class="pin-key" onclick="pinInvoer('5')">5</button>
+        <button class="pin-key" onclick="pinInvoer('6')">6</button>
+        <button class="pin-key" onclick="pinInvoer('7')">7</button>
+        <button class="pin-key" onclick="pinInvoer('8')">8</button>
+        <button class="pin-key" onclick="pinInvoer('9')">9</button>
+        <button class="pin-key" onclick="sluitPinModal()" style="background:#f5f5f5;box-shadow:0 4px 0 #e0e0e0;color:#999;font-size:14px;font-weight:600;">annuleer</button>
+        <button class="pin-key" onclick="pinInvoer('0')">0</button>
+        <button class="pin-key" onclick="pinWis()" style="background:#f5f5f5;box-shadow:0 4px 0 #e0e0e0;color:#666;font-size:18px;">⌫</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3815,7 +3823,7 @@ function toonPinModal() {
   _pinBuffer = '';
   pinUpdateDots();
   document.getElementById('pin-msg').textContent = 'Voer de pincode in';
-  document.getElementById('pin-msg').style.color = '#999';
+  document.getElementById('pin-msg').style.color = 'rgba(255,255,255,0.75)';
   document.getElementById('pin-overlay').style.display = 'flex';
 }
 
@@ -3851,9 +3859,9 @@ function pinControleer() {
     _openFlyerModus();
   } else {
     document.getElementById('pin-msg').textContent = 'Onjuiste pincode, probeer opnieuw';
-    document.getElementById('pin-msg').style.color = '#e74c3c';
+    document.getElementById('pin-msg').style.color = '#ffaaaa';
     document.querySelectorAll('.pin-dot').forEach(d => { d.style.background='#e74c3c'; d.style.borderColor='#e74c3c'; });
-    setTimeout(() => { _pinBuffer = ''; pinUpdateDots(); document.getElementById('pin-msg').textContent='Voer de pincode in'; document.getElementById('pin-msg').style.color='#999'; }, 800);
+    setTimeout(() => { _pinBuffer = ''; pinUpdateDots(); document.getElementById('pin-msg').textContent='Voer de pincode in'; document.getElementById('pin-msg').style.color='rgba(255,255,255,0.75)'; }, 800);
   }
 }
 
