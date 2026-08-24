@@ -2,11 +2,11 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="VVEgemak">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#1d7a6e">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>VVEgemak Kaart</title>
@@ -318,7 +318,7 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 </div>
 
 <!-- INTRO SPLASH SCREEN -->
-<div id="intro-overlay" style="display:flex;position:fixed;inset:0;z-index:999998;background:#03100e;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;">
+<div id="intro-overlay" style="display:none;position:fixed;inset:0;z-index:999998;background:#03100e;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;">
   <canvas id="intro-canvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
 
   <!-- Glow ringen op de achtergrond -->
@@ -946,7 +946,6 @@ function speelIntroAf() {
   if (!intro) return;
   intro.style.display = 'flex';
   intro.style.opacity = '1';
-  document.querySelector('meta[name="theme-color"]').content = '#03100e';
 
   const canvas = document.getElementById('intro-canvas');
   const ctx = canvas.getContext('2d');
@@ -1073,7 +1072,6 @@ function speelIntroAf() {
         intro.style.animation = '';
         cancelAnimationFrame(animId);
         _introKlaar = true;
-        document.querySelector('meta[name="theme-color"]').content = '#ffffff';
         slideNaarKaart();
       }, 820);
     } else {
@@ -1084,7 +1082,6 @@ function speelIntroAf() {
         intro.style.display = 'none';
         cancelAnimationFrame(animId);
         _introKlaar = true;
-        document.querySelector('meta[name="theme-color"]').content = '#1d7a6e';
         const loginEl = document.getElementById('login-overlay');
         loginEl.style.opacity = '0';
         loginEl.style.display = 'flex';
