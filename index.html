@@ -445,6 +445,11 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 @keyframes overlayWeg { from{opacity:1} to{opacity:0} }
 </style>
 <div id="reminder-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99998;background:#e74c3c;color:#fff;padding:12px 16px;font-size:13px;font-weight:600;text-align:center;cursor:pointer;" onclick="this.style.display='none'">⏰ Laad...</div>
+<div id="push-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99997;background:#1d7a6e;color:#fff;padding:14px 16px;font-size:13px;font-weight:600;text-align:center;display:none;gap:12px;align-items:center;justify-content:center;">
+  <span>🔔 Sta meldingen toe voor flyer-herinneringen</span>
+  <button onclick="activeerPushMeldingen()" style="background:#fff;color:#1d7a6e;border:none;border-radius:20px;padding:6px 16px;font-weight:700;font-size:13px;cursor:pointer;">Sta toe</button>
+  <button onclick="document.getElementById('push-banner').style.display='none'" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.5);border-radius:20px;padding:6px 12px;font-size:12px;cursor:pointer;">Later</button>
+</div>
 <div id="container"></div>
 <div id="tooltip"><div id="tooltip-name"></div><div id="tooltip-addr"></div></div>
 
@@ -3264,12 +3269,28 @@ function checkReminders() {
   });
 }
 
+async function activeerPushMeldingen() {
+  document.getElementById('push-banner').style.display = 'none';
+  const ok = await vraagPushToestemming();
+  if (!ok) alert('Meldingen geblokkeerd. Ga naar de instellingen van je telefoon om meldingen toe te staan.');
+}
+
 function startReminderCheck() {
   if (!FLYER_EMAILS.includes(_fbGebruiker?.email)) return;
-  vraagPushToestemming();
   checkReminders();
   clearInterval(_reminderInterval);
   _reminderInterval = setInterval(checkReminders, 30 * 60 * 1000);
+
+  // Toon push-banner als toestemming nog niet gegeven is (na korte delay zodat kaart al geladen is)
+  if ('Notification' in window && Notification.permission === 'default') {
+    setTimeout(() => {
+      const banner = document.getElementById('push-banner');
+      if (banner) banner.style.display = 'flex';
+    }, 2000);
+  } else if ('Notification' in window && Notification.permission === 'granted') {
+    // Al toegestaan — registreer abonnement op de achtergrond
+    registreerPushAbonnement().catch(() => {});
+  }
 }
 
 function getAdresRange(d) {
