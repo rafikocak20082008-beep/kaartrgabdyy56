@@ -3122,23 +3122,75 @@ function kMeansCluster(vves, k) {
 
 // ── Push notificaties & herinneringen ───────────────
 const FLYER_EMAILS = ['moriskocak77@gmail.com', 'rafikocak20.08.2008@gmail.com'];
+const VAPID_PUBLIC_KEY = 'BDltnsFzAWLSsK0BgCV1GZhuL-Dpt6Z5qP8nqKcIi5ecvi6kmjY4OZyimTarGliYJ4z8YfWdL6604bn5nKxWPNs';
+
+function urlB64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function registreerPushAbonnement() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+  }
+  // Sla abonnement op in Firebase zodat andere apparaten het kunnen gebruiken
+  if (_fbGebruiker) {
+    const subJson = sub.toJSON();
+    await _db.collection('push_subs').doc(_fbGebruiker.uid).set({
+      email: _fbGebruiker.email,
+      subscription: subJson,
+      bijgewerkt: new Date().toISOString()
+    }).catch(() => {});
+  }
+  return sub;
+}
 
 async function vraagPushToestemming() {
   if (!('Notification' in window)) return false;
-  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'granted') {
+    await registreerPushAbonnement();
+    return true;
+  }
   const perm = await Notification.requestPermission();
+  if (perm === 'granted') await registreerPushAbonnement();
   return perm === 'granted';
+}
+
+async function stuurPushNaarMoris(title, body) {
+  // Haal alle push abonnementen op van Moris uit Firebase
+  try {
+    const snap = await _db.collection('push_subs')
+      .where('email', '==', 'moriskocak77@gmail.com').get();
+    const subs = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (d.subscription) subs.push(d.subscription);
+    });
+    if (!subs.length) return;
+    // Stuur via Vercel API
+    await fetch('/api/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscriptions: subs, title, body })
+    });
+  } catch(e) { console.warn('push fout:', e); }
 }
 
 function slaReminderOp(buurtNaam, deelNr, totaalDelen) {
   const label = buurtNaam + (totaalDelen > 1 ? ' deel ' + deelNr : '');
   const volgende = new Date(Date.now() + 14*24*60*60*1000).toISOString();
-  // Lokaal opslaan
   const reminders = JSON.parse(localStorage.getItem('vve_reminders') || '[]');
   const filtered = reminders.filter(r => r.label !== label);
   filtered.push({label, volgende, buurt: buurtNaam, deel: deelNr});
   localStorage.setItem('vve_reminders', JSON.stringify(filtered));
-  // Ook in Firebase opslaan zodat het op elk apparaat werkt
   if (_fbGebruiker) {
     _db.collection('reminders').doc(label).set({
       label, volgende, buurt: buurtNaam, deel: deelNr,
@@ -3149,7 +3201,6 @@ function slaReminderOp(buurtNaam, deelNr, totaalDelen) {
 }
 
 function verwijderReminder(label) {
-  // Verwijder uit Firebase als buurt opnieuw geflyerd is
   _db.collection('reminders').doc(label).delete().catch(()=>{});
   const reminders = JSON.parse(localStorage.getItem('vve_reminders') || '[]');
   localStorage.setItem('vve_reminders', JSON.stringify(reminders.filter(r => r.label !== label)));
@@ -3162,36 +3213,48 @@ function checkReminders() {
   const nu = Date.now();
   const banner = document.getElementById('reminder-banner');
 
-  // Lees altijd uit Firebase (persistent, werkt op elk apparaat)
-  _db.collection('reminders').where('email','==', _fbGebruiker.email).get().then(snap => {
-    const verval = [];
+  // Lees ALLE reminders (niet alleen van deze gebruiker) zodat Rafi ook Moris kan triggeren
+  _db.collection('reminders').get().then(snap => {
+    const vervalMijzelf = [];
+    const vervalMoris = [];
     snap.forEach(doc => {
       const r = doc.data();
-      if (new Date(r.volgende).getTime() <= nu) verval.push(r);
+      if (new Date(r.volgende).getTime() > nu) return;
+      if (r.email === _fbGebruiker.email) vervalMijzelf.push(r);
+      else if (r.email === 'moriskocak77@gmail.com') vervalMoris.push(r);
     });
 
-    if (verval.length > 0) {
+    // Toon banner voor eigen reminders
+    if (vervalMijzelf.length > 0) {
       if (banner) {
-        banner.innerHTML = '⏰ ' + verval.map(r => `<strong>${r.label}</strong> moet opnieuw geflyerd!`).join(' &nbsp;·&nbsp; ');
+        banner.innerHTML = '⏰ ' + vervalMijzelf.map(r => `<strong>${r.label}</strong> moet opnieuw geflyerd!`).join(' &nbsp;·&nbsp; ');
         banner.style.display = 'block';
       }
-      // Browsermelding sturen
+      // In-app notificatie (werkt als app open is)
       if (Notification.permission === 'granted') {
-        verval.forEach(r => {
+        vervalMijzelf.forEach(r => {
           new Notification('VVEgemak — tijd om te flyeren!', {
-            body: r.label + ' moet opnieuw bezocht worden. Ga er langs!',
-            icon: '/icon-192.png',
-            badge: '/icon-192.png',
-            tag: r.label, // voorkomt dubbele meldingen
-            requireInteraction: true // blijft staan tot gebruiker reageert
+            body: r.label + ' moet opnieuw bezocht worden.',
+            icon: '/icon-192.png', tag: r.label, requireInteraction: true
           });
         });
       }
-    } else if (banner) {
+    } else if (banner && !vervalMoris.length) {
       banner.style.display = 'none';
     }
+
+    // Als Rafi ingelogd is en Moris heeft vervallen reminders → stuur push naar Moris
+    if (vervalMoris.length > 0 && _fbGebruiker.email !== 'moriskocak77@gmail.com') {
+      const sentKey = 'push_sent_' + vervalMoris.map(r=>r.label).join(',');
+      if (!sessionStorage.getItem(sentKey)) {
+        sessionStorage.setItem(sentKey, '1');
+        stuurPushNaarMoris(
+          '⏰ Tijd om te flyeren!',
+          vervalMoris.map(r => r.label).join(', ') + ' moet opnieuw geflyerd worden!'
+        );
+      }
+    }
   }).catch(() => {
-    // Fallback: localStorage
     const reminders = JSON.parse(localStorage.getItem('vve_reminders') || '[]');
     const verval = reminders.filter(r => new Date(r.volgende).getTime() <= nu);
     if (verval.length > 0 && banner) {
@@ -3206,7 +3269,6 @@ function startReminderCheck() {
   vraagPushToestemming();
   checkReminders();
   clearInterval(_reminderInterval);
-  // Elke 30 min opnieuw checken terwijl app open is
   _reminderInterval = setInterval(checkReminders, 30 * 60 * 1000);
 }
 
