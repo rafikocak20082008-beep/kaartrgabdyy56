@@ -3271,8 +3271,12 @@ function checkReminders() {
 
 async function activeerPushMeldingen() {
   document.getElementById('push-banner').style.display = 'none';
+  if (Notification.permission === 'denied') {
+    alert('Meldingen zijn geblokkeerd. Ga naar Instellingen → VVEgemak → Meldingen en zet ze aan.');
+    return;
+  }
   const ok = await vraagPushToestemming();
-  if (!ok) alert('Meldingen geblokkeerd. Ga naar de instellingen van je telefoon om meldingen toe te staan.');
+  if (!ok) alert('Meldingen staan uit. Ga naar je telefooninstellingen om ze aan te zetten voor deze app.');
 }
 
 function startReminderCheck() {
@@ -3281,16 +3285,17 @@ function startReminderCheck() {
   clearInterval(_reminderInterval);
   _reminderInterval = setInterval(checkReminders, 30 * 60 * 1000);
 
-  // Toon push-banner als toestemming nog niet gegeven is (na korte delay zodat kaart al geladen is)
-  if ('Notification' in window && Notification.permission === 'default') {
-    setTimeout(() => {
-      const banner = document.getElementById('push-banner');
-      if (banner) banner.style.display = 'flex';
-    }, 2000);
-  } else if ('Notification' in window && Notification.permission === 'granted') {
-    // Al toegestaan — registreer abonnement op de achtergrond
-    registreerPushAbonnement().catch(() => {});
-  }
+  setTimeout(async () => {
+    const pushBanner = document.getElementById('push-banner');
+    if (!('Notification' in window) || !('PushManager' in window)) return;
+    if (Notification.permission === 'granted') {
+      // Al toegestaan — registreer stil op achtergrond
+      await registreerPushAbonnement().catch(() => {});
+    } else {
+      // Toon banner (ook bij 'denied' zodat gebruiker weet wat te doen)
+      if (pushBanner) pushBanner.style.display = 'flex';
+    }
+  }, 2000);
 }
 
 function getAdresRange(d) {
