@@ -3287,13 +3287,25 @@ function startReminderCheck() {
 
   setTimeout(async () => {
     const pushBanner = document.getElementById('push-banner');
-    if (!('Notification' in window) || !('PushManager' in window)) return;
-    if (Notification.permission === 'granted') {
+    if (!pushBanner) return;
+    const isPWA = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+    const heeftPush = 'Notification' in window && 'PushManager' in window;
+
+    if (!isPWA) {
+      // Loopt in Safari browser, niet als PWA
+      pushBanner.querySelector('span').textContent = '📱 Voeg de app toe aan je beginscherm voor meldingen';
+      pushBanner.querySelector('button').textContent = 'Hoe?';
+      pushBanner.querySelector('button').onclick = () => {
+        pushBanner.style.display = 'none';
+        alert('Tap op het deel-icoontje (vierkantkje met pijl) in Safari → "Zet op beginscherm". Daarna werken meldingen.');
+      };
+      pushBanner.style.display = 'flex';
+    } else if (heeftPush && Notification.permission === 'granted') {
       // Al toegestaan — registreer stil op achtergrond
       await registreerPushAbonnement().catch(() => {});
-    } else {
-      // Toon banner (ook bij 'denied' zodat gebruiker weet wat te doen)
-      if (pushBanner) pushBanner.style.display = 'flex';
+    } else if (heeftPush) {
+      // Toon banner om toestemming te vragen
+      pushBanner.style.display = 'flex';
     }
   }, 2000);
 }
