@@ -2213,12 +2213,17 @@ function renderLayers(data){
     openSidebar(object);
     return true;
   };
+  let _hoverRaf = null;
   const hoverHandler = ({object, x, y}) => {
-    const tip=document.getElementById('tooltip');
-    if(object){ tip.style.display='block'; tip.style.left=(x+12)+'px'; tip.style.top=(y-40)+'px';
-      document.getElementById('tooltip-name').textContent=object.naam;
-      document.getElementById('tooltip-addr').textContent=(object.klant?'★ VVEgemak klant — ':'')+object.straat+' '+object.nr;
-    } else { tip.style.display='none'; }
+    if (_hoverRaf) return;
+    _hoverRaf = requestAnimationFrame(() => {
+      _hoverRaf = null;
+      const tip=document.getElementById('tooltip');
+      if(object){ tip.style.display='block'; tip.style.left=(x+12)+'px'; tip.style.top=(y-40)+'px';
+        document.getElementById('tooltip-name').textContent=object.naam;
+        document.getElementById('tooltip-addr').textContent=(object.klant?'★ VVEgemak klant — ':'')+object.straat+' '+object.nr;
+      } else { tip.style.display='none'; }
+    });
   };
 
   const puntShadowLayer = new ScatterplotLayer({
