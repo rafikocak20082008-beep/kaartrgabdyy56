@@ -2076,6 +2076,7 @@ const deckgl = new DeckGL({
   mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
   initialViewState: { longitude: 4.895, latitude: 52.370, zoom: 12, pitch: 0, bearing: 0 },
   controller: true,
+  useDevicePixels: false,
   onViewStateChange: ({viewState}) => {
     const logo = document.getElementById('header');
     logo.style.opacity = viewState.zoom >= 14 ? '0' : '1';
@@ -2247,7 +2248,7 @@ function renderLayers(data){
     lineWidthMinPixels: 0.5,
     stroked: true,
     getLineColor: [255,255,255,180],
-    pickable: true, autoHighlight: true, highlightColor: [255,255,255,80],
+    pickable: true, autoHighlight: false,
     onClick: ({object,x,y})=>clickHandler(object,x,y),
     onHover: hoverHandler,
     updateTriggers: { getFillColor: flyerModus }
@@ -2293,7 +2294,7 @@ function renderLayers(data){
       return true;
     },
   });
-  const layers = [clusterLayer, tekstLayer, puntShadowLayer, puntLayer, klantHaloLayer, klantLayer, kantoorLayer].filter(Boolean);
+  const layers = [clusterLayer, tekstLayer, puntLayer, klantHaloLayer, klantLayer, kantoorLayer].filter(Boolean);
   if (gpsLat !== null) {
     layers.push(new ScatterplotLayer({
       id:'gps-ring', data:[{lat:gpsLat,lng:gpsLng}],
