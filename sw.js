@@ -49,3 +49,32 @@ self.addEventListener('fetch', e => {
     })
   );
 });
+
+// ── Push notificaties (achtergrond) ─────────────────────
+self.addEventListener('push', e => {
+  let data = { title: 'VVEgemak', body: 'Tijd om te flyeren!' };
+  try { data = e.data.json(); } catch {}
+
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'VVEgemak', {
+      body: data.body || '',
+      icon: data.icon || '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: data.tag || 'vvegemak-flyer',
+      requireInteraction: true,
+      data: { url: '/' }
+    })
+  );
+});
+
+// Klik op notificatie opent de app
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      const existing = list.find(c => c.url.includes(self.location.origin));
+      if (existing) return existing.focus();
+      return clients.openWindow('/');
+    })
+  );
+});
