@@ -2086,10 +2086,9 @@ const deckgl = new DeckGL({
     const logo = document.getElementById('header');
     logo.style.opacity = viewState.zoom >= 14 ? '0' : '1';
     logo.style.pointerEvents = viewState.zoom >= 14 ? 'none' : 'all';
-    if (Math.abs(viewState.zoom - huidigZoom) > 0.3) {
+    if (Math.abs(viewState.zoom - huidigZoom) > 0.5) {
       huidigZoom = viewState.zoom;
-      applyFilters();
-
+      applyFiltersDebounced();
     }
   },
   layers: [],
@@ -3218,16 +3217,17 @@ function checkReminders() {
   const nu = Date.now();
   const banner = document.getElementById('reminder-banner');
 
-  // Lees ALLE reminders (niet alleen van deze gebruiker) zodat Rafi ook Moris kan triggeren
-  _db.collection('reminders').get().then(snap => {
+  // Lees alleen eigen reminders + Moris zijn reminders (twee gefilterde queries, niet alles)
+  const eigenQ = _db.collection('reminders').where('email','==',_fbGebruiker.email).get();
+  const morisQ = _fbGebruiker.email !== 'moriskocak77@gmail.com'
+    ? _db.collection('reminders').where('email','==','moriskocak77@gmail.com').get()
+    : Promise.resolve({forEach:()=>{}});
+
+  Promise.all([eigenQ, morisQ]).then(([eigenSnap, morisSnap]) => {
     const vervalMijzelf = [];
     const vervalMoris = [];
-    snap.forEach(doc => {
-      const r = doc.data();
-      if (new Date(r.volgende).getTime() > nu) return;
-      if (r.email === _fbGebruiker.email) vervalMijzelf.push(r);
-      else if (r.email === 'moriskocak77@gmail.com') vervalMoris.push(r);
-    });
+    eigenSnap.forEach(doc => { const r = doc.data(); if (new Date(r.volgende).getTime() <= nu) vervalMijzelf.push(r); });
+    morisSnap.forEach(doc => { const r = doc.data(); if (new Date(r.volgende).getTime() <= nu) vervalMoris.push(r); });
 
     // Toon banner voor eigen reminders
     if (vervalMijzelf.length > 0) {
