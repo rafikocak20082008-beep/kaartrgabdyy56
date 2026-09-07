@@ -319,7 +319,8 @@ body.dark-mode #search-results { background: #1a1f2e !important; }
 
 <!-- INTRO SPLASH SCREEN -->
 <div id="intro-overlay" style="display:none;position:fixed;inset:0;z-index:999998;background:#03100e;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;">
-  <canvas id="intro-canvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+  <!-- CSS sterren (geen canvas) -->
+  <div id="intro-sterren" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;"></div>
 
   <!-- Glow ringen op de achtergrond -->
   <div style="position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(29,122,110,0.18) 0%,transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);animation:introPuls 3s ease-in-out infinite;pointer-events:none;"></div>
@@ -952,121 +953,22 @@ function speelIntroAf() {
   intro.style.display = 'flex';
   intro.style.opacity = '1';
 
-  const canvas = document.getElementById('intro-canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const W = canvas.width, H = canvas.height;
-
-  // Vliegende stippen — minder op mobiel voor betere performance
-  const isMobiel = W < 768;
-  const aantalDots = isMobiel ? 60 : 120;
-  const dots = Array.from({length: aantalDots}, () => ({
-    x: (Math.random() - 0.5) * W * 2,
-    y: (Math.random() - 0.5) * H * 2,
-    z: Math.random() * W,
-    vz: -(Math.random() * 1.2 + 0.4),
-    color: Math.random() > 0.6 ? [29, 200, 160] : [141, 198, 63]
-  }));
-
-  let frame = 0;
-  let animId;
-  let lastTime = 0;
-  const doelFPS = isMobiel ? 30 : 60;
-  const frameInterval = 1000 / doelFPS;
-
-  function draw(nu) {
-    animId = requestAnimationFrame(draw);
-    if (nu - lastTime < frameInterval) return;
-    lastTime = nu;
-
-    ctx.fillStyle = 'rgba(3,16,14,0.25)';
-    ctx.fillRect(0, 0, W, H);
-
-    const cx = W / 2, cy = H / 2;
-    dots.forEach(p => {
-      p.z += p.vz;
-      if (p.z <= 1) { p.z = W; p.x = (Math.random()-0.5)*W*2; p.y = (Math.random()-0.5)*H*2; }
-      const scale = W / p.z;
-      const sx = cx + p.x * scale;
-      const sy = cy + p.y * scale;
-      if (sx < -10 || sx > W+10 || sy < -10 || sy > H+10) return;
-      const r = Math.max(0.3, scale * 2.5);
-      const alpha = Math.min(1, (1 - p.z / W) * 1.4);
-      ctx.beginPath();
-      ctx.arc(sx, sy, r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${p.color[0]},${p.color[1]},${p.color[2]},${alpha})`;
-      ctx.fill();
-      // Staartje alleen op desktop
-      if (!isMobiel) {
-        const prevScale = W / (p.z - p.vz * 4);
-        const px2 = cx + p.x * prevScale;
-        const py2 = cy + p.y * prevScale;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy); ctx.lineTo(px2, py2);
-        ctx.strokeStyle = `rgba(${p.color[0]},${p.color[1]},${p.color[2]},${alpha * 0.4})`;
-        ctx.lineWidth = r * 0.6;
-        ctx.stroke();
-      }
-    });
-
-    // 3D draaiende wireframe globe
-    const gR = Math.min(W, H) * 0.22;
-    const gX = W / 2, gY = H / 2;
-    const rot = frame * 0.006;
-
-    // Gloed achter de globe
-    const gGlow = ctx.createRadialGradient(gX, gY, 0, gX, gY, gR * 1.4);
-    gGlow.addColorStop(0, 'rgba(29,122,110,0.13)');
-    gGlow.addColorStop(1, 'rgba(3,16,14,0)');
-    ctx.beginPath(); ctx.arc(gX, gY, gR * 1.4, 0, Math.PI*2);
-    ctx.fillStyle = gGlow; ctx.fill();
-
-    // Globe rand
-    ctx.beginPath(); ctx.arc(gX, gY, gR, 0, Math.PI*2);
-    ctx.strokeStyle = 'rgba(29,200,160,0.18)'; ctx.lineWidth = 1.5; ctx.stroke();
-
-    // Breedtecirkels (3 i.p.v. 5)
-    for (let i = 1; i <= 3; i++) {
-      const lat = (i / 4) * Math.PI;
-      const ry = gR * Math.sin(lat - Math.PI/2);
-      const rx = gR * Math.cos(lat - Math.PI/2);
-      const yPos = gY + ry;
-      if (Math.abs(rx) < 2) continue;
-      ctx.beginPath();
-      ctx.ellipse(gX, yPos, Math.abs(rx), Math.abs(rx) * 0.14, 0, 0, Math.PI*2);
-      ctx.strokeStyle = 'rgba(141,198,63,0.12)'; ctx.lineWidth = 0.8; ctx.stroke();
+  // CSS sterren — geen canvas, volledig GPU
+  const sterrenEl = document.getElementById('intro-sterren');
+  if (sterrenEl) {
+    const stijl = document.createElement('style');
+    stijl.textContent = `@keyframes introSter{0%{transform:translateY(0) scale(1);opacity:var(--oa)}50%{opacity:calc(var(--oa)*1.5)}100%{transform:translateY(-30px) scale(0.5);opacity:0}}`;
+    document.head.appendChild(stijl);
+    for (let i = 0; i < 55; i++) {
+      const s = document.createElement('div');
+      const sz = Math.random() * 2.5 + 1;
+      const kleur = Math.random() > 0.55 ? '#1dc8a0' : '#8dc63f';
+      const oa = (Math.random() * 0.4 + 0.15).toFixed(2);
+      s.style.cssText = `position:absolute;left:${Math.random()*100}%;top:${Math.random()*100}%;width:${sz}px;height:${sz}px;border-radius:50%;background:${kleur};--oa:${oa};opacity:${oa};animation:introSter ${(Math.random()*3+2).toFixed(1)}s ease-in-out ${(Math.random()*3).toFixed(1)}s infinite alternate;will-change:transform,opacity`;
+      sterrenEl.appendChild(s);
     }
-
-    // Lengtecirkels (5 i.p.v. 9)
-    for (let i = 0; i < 5; i++) {
-      const angle = rot + (i / 5) * Math.PI;
-      const cosA = Math.cos(angle);
-      const alpha = Math.max(0, Math.abs(cosA)) * 0.22 + 0.04;
-      ctx.beginPath();
-      ctx.ellipse(gX, gY, gR * Math.abs(cosA), gR, 0, 0, Math.PI*2);
-      ctx.strokeStyle = `rgba(29,200,160,${alpha})`; ctx.lineWidth = 0.9; ctx.stroke();
-    }
-
-    // Steden / punten op de globe
-    const puntenGlobe = [{la:0.9,lo:0.3},{la:-0.3,lo:1.8},{la:0.5,lo:2.6},{la:0.1,lo:0.9},{la:-0.6,lo:0.5},{la:0.7,lo:1.4}];
-    puntenGlobe.forEach(p => {
-      const lon = p.lo + rot;
-      const px = gX + gR * Math.cos(p.la) * Math.sin(lon);
-      const py = gY - gR * Math.sin(p.la);
-      const depth = Math.cos(p.la) * Math.cos(lon);
-      if (depth < 0) return;
-      const a = 0.4 + depth * 0.6;
-      ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(141,198,63,${a})`; ctx.fill();
-      ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI*2);
-      ctx.strokeStyle = `rgba(141,198,63,${a*0.35})`; ctx.lineWidth = 1; ctx.stroke();
-    });
-
-    ctx.globalAlpha = 1;
-    frame++;
   }
-  animId = requestAnimationFrame(draw);
+  let animId = null; // geen canvas animId meer nodig
 
   // Globe zoom-out overgang na 3.5s
   setTimeout(() => {
