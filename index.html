@@ -993,20 +993,32 @@ function speelIntroAf() {
         slideNaarKaart();
       }, 820);
     } else {
-      // Niet ingelogd: gewone fade naar loginscherm
-      intro.style.transition = 'opacity 0.9s ease';
-      intro.style.opacity = '0';
+      // Niet ingelogd: vloeiende cross-fade naar loginscherm
+      const loginEl = document.getElementById('login-overlay');
+      loginEl.style.opacity = '0';
+      loginEl.style.display = 'flex';
+      loginEl.style.willChange = 'opacity, transform';
+      intro.style.willChange = 'opacity';
+
+      // Cross-fade: login verschijnt terwijl intro wegfadet
+      requestAnimationFrame(() => {
+        intro.style.transition = 'opacity 0.65s cubic-bezier(0.4,0,0.2,1)';
+        loginEl.style.transition = 'opacity 0.65s cubic-bezier(0.4,0,0.2,1) 0.15s, transform 0.65s cubic-bezier(0.34,1.4,0.64,1) 0.15s';
+        loginEl.style.transform = 'translateY(18px) scale(0.97)';
+        requestAnimationFrame(() => {
+          intro.style.opacity = '0';
+          loginEl.style.opacity = '1';
+          loginEl.style.transform = 'translateY(0) scale(1)';
+        });
+      });
+
       setTimeout(() => {
         intro.style.display = 'none';
+        intro.style.transition = '';
+        intro.style.willChange = '';
+        loginEl.style.willChange = '';
         cancelAnimationFrame(animId);
         _introKlaar = true;
-        const loginEl = document.getElementById('login-overlay');
-        loginEl.style.opacity = '0';
-        loginEl.style.display = 'flex';
-        setTimeout(() => {
-          loginEl.style.transition = 'opacity 0.5s ease';
-          loginEl.style.opacity = '1';
-        }, 30);
       }, 900);
     }
   }, 3500);
