@@ -2024,7 +2024,13 @@ const deckgl = new DeckGL({
 alleData.forEach(d => { d.totaal = (d.app||0)+(d.kantoren||0)+(d.winkels||0)+(d.parkeerplaatsen||0); });
 
 function totaalFuncties(d){ return d.totaal; }
-function getColor(d){ if(d.klant) return [245,166,35,255]; return d.totaal>=50 ? [29,122,110,230] : [123,198,126,220]; }
+function getColor(d){
+  if(d.klant) return [245,166,35,255];
+  const fd = flyerData[String(d.kvk)];
+  if(fd && fd.bezoek1 && !fd.klaar) return [120,80,200,220]; // paars = geflyerd, nog niet klaar
+  if(fd && fd.klaar) return [160,160,160,180]; // grijs = klaar
+  return d.totaal>=50 ? [29,122,110,230] : [123,198,126,220];
+}
 function getRadius(app){ return app>=50 ? 8 : 6; }
 
 let huidigZoom = 11;
@@ -2164,7 +2170,7 @@ function renderLayers(data){
     getRadius: d => getRadius(d.totaal) + 2,
     radiusUnits: 'pixels', radiusMinPixels: 5, radiusMaxPixels: 13,
     stroked: false, pickable: false,
-    updateTriggers: { getFillColor: flyerModus }
+    updateTriggers: { getFillColor: [flyerModus, Object.keys(flyerData).length] }
   });
   const puntLayer = new ScatterplotLayer({
     id: 'vves', data: gewone,
@@ -2181,7 +2187,7 @@ function renderLayers(data){
     pickable: true, autoHighlight: false,
     onClick: ({object,x,y})=>clickHandler(object,x,y),
     onHover: hoverHandler,
-    updateTriggers: { getFillColor: flyerModus }
+    updateTriggers: { getFillColor: [flyerModus, Object.keys(flyerData).length] }
   });
 
   const klantHaloLayer = new ScatterplotLayer({
@@ -2582,6 +2588,17 @@ function markeerGeflyerd(d) {
   syncFlyerNaarGitHub(kvk, fd);
   const btn = document.querySelector('#flyer-sectie button');
   if (btn) { btn.textContent = 'Opgeslagen!'; btn.style.background = '#27ae60'; setTimeout(() => { btn.textContent = '✓ Geflyerd vandaag'; btn.style.background = '#1d7a6e'; }, 2000); }
+  // Melding via browser notification
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const fd2 = flyerData[String(d.kvk)];
+    const bezoekNr = fd2.bezoek3 ? 3 : fd2.bezoek2 ? 2 : 1;
+    new Notification('VVEgemak ✓ Geflyerd', {
+      body: `${d.naam || d.straat} — bezoek ${bezoekNr} opgeslagen`,
+      icon: '/icon-192.png', tag: 'geflyerd'
+    });
+  } else if ('Notification' in window && Notification.permission !== 'denied') {
+    Notification.requestPermission();
+  }
   applyFilters();
 }
 
@@ -4156,16 +4173,27 @@ function toonFlyerOverzicht() {
         🔄 Vandaag bezig: ${vandaagBezig.buurten || '—'} · ${vandaagBezig.aantalVves || 0} VvEs · ${Math.floor((vandaagBezig.minuten||0)/60)}u${(vandaagBezig.minuten||0)%60}min (niet afgerond)
       </div>` : '';
 
-      const rijen = sessies.map(s => {
+      // Groepeer sessies per dag
+      const perDag = {};
+      sessies.forEach(s => {
+        const dag = s.datum || '—';
+        if (!perDag[dag]) perDag[dag] = {datum: dag, minuten: 0, aantalVves: 0, buurten: new Set()};
+        perDag[dag].minuten += s.minuten || 0;
+        perDag[dag].aantalVves += s.aantalVves || 0;
+        if (s.buurten) s.buurten.split(',').forEach(b => perDag[dag].buurten.add(b.trim()));
+      });
+
+      const rijen = Object.values(perDag).sort((a,b) => b.datum.localeCompare(a.datum)).map(s => {
         const u = Math.floor((s.minuten||0)/60);
         const m = (s.minuten||0)%60;
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:13px;">
+        const buurtenTxt = [...s.buurten].filter(Boolean).join(', ') || '—';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f5f5f5;font-size:13px;">
           <div>
-            <div style="font-weight:600;color:#222;">${s.buurten || '—'}</div>
+            <div style="font-weight:600;color:#222;">${buurtenTxt}</div>
             <div style="color:#aaa;font-size:11px;">${s.datum}</div>
           </div>
           <div style="text-align:right;">
-            <div style="color:#1d7a6e;font-weight:700;">${s.aantalVves || 0} VvEs</div>
+            <div style="color:#1d7a6e;font-weight:700;">${s.aantalVves} VvEs</div>
             <div style="color:#aaa;font-size:11px;">${u > 0 ? u+'u ' : ''}${m}min</div>
           </div>
         </div>`;
