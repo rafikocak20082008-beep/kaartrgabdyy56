@@ -2024,13 +2024,7 @@ const deckgl = new DeckGL({
 alleData.forEach(d => { d.totaal = (d.app||0)+(d.kantoren||0)+(d.winkels||0)+(d.parkeerplaatsen||0); });
 
 function totaalFuncties(d){ return d.totaal; }
-function getColor(d){
-  if(d.klant) return [245,166,35,255];
-  const fd = flyerData[String(d.kvk)];
-  if(fd && fd.bezoek1 && !fd.klaar) return [120,80,200,220]; // paars = geflyerd, nog niet klaar
-  if(fd && fd.klaar) return [160,160,160,180]; // grijs = klaar
-  return d.totaal>=50 ? [29,122,110,230] : [123,198,126,220];
-}
+function getColor(d){ if(d.klant) return [245,166,35,255]; return d.totaal>=50 ? [29,122,110,230] : [123,198,126,220]; }
 function getRadius(app){ return app>=50 ? 8 : 6; }
 
 let huidigZoom = 11;
